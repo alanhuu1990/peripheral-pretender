@@ -1,0 +1,221 @@
+{
+ "schema": "pp-device-stm32/1",
+ "generated_by": "scripts/gen_stm32l432_device_json.py",
+ "source": {
+  "cmsis": "stm32l432xx.h",
+  "reference": "RM0394"
+ },
+ "device": {
+  "name": "STM32L432KC",
+  "architecture": "CORTEX-M4F",
+  "family": "STM32L4",
+  "series": "STM32L432"
+ },
+ "core": {
+  "num_irq": 83,
+  "nvic_prio_bits": 4
+ },
+ "memory": [
+  {
+   "name": "FLASH",
+   "base": 134217728,
+   "size": 262144,
+   "type": "flash",
+   "exec": true
+  },
+  {
+   "name": "SRAM1",
+   "base": 536870912,
+   "size": 49152,
+   "type": "ram"
+  },
+  {
+   "name": "SRAM2",
+   "base": 268435456,
+   "size": 16384,
+   "type": "ram"
+  }
+ ],
+ "interrupts": [
+  {
+   "line": 0,
+   "name": "WWDG"
+  },
+  {
+   "line": 1,
+   "name": "PVD_PVM"
+  },
+  {
+   "line": 2,
+   "name": "TAMP_STAMP"
+  },
+  {
+   "line": 3,
+   "name": "RTC_WKUP"
+  },
+  {
+   "line": 4,
+   "name": "FLASH"
+  },
+  {
+   "line": 5,
+   "name": "RCC"
+  },
+  {
+   "line": 6,
+   "name": "EXTI0"
+  },
+  {
+   "line": 7,
+   "name": "EXTI1"
+  },
+  {
+   "line": 8,
+   "name": "EXTI2"
+  },
+  {
+   "line": 9,
+   "name": "EXTI3"
+  },
+  {
+   "line": 10,
+   "name": "EXTI4"
+  },
+  {
+   "line": 18,
+   "name": "ADC1"
+  },
+  {
+   "line": 19,
+   "name": "CAN1_TX"
+  },
+  {
+   "line": 20,
+   "name": "CAN1_RX0"
+  },
+  {
+   "line": 21,
+   "name": "CAN1_RX1"
+  },
+  {
+   "line": 22,
+   "name": "CAN1_SCE"
+  },
+  {
+   "line": 23,
+   "name": "EXTI9_5"
+  },
+  {
+   "line": 24,
+   "name": "TIM1_BRK_TIM15"
+  },
+  {
+   "line": 25,
+   "name": "TIM1_UP_TIM16"
+  },
+  {
+   "line": 26,
+   "name": "TIM1_TRG_COM"
+  },
+  {
+   "line": 27,
+   "name": "TIM1_CC"
+  },
+  {
+   "line": 28,
+   "name": "TIM2"
+  },
+  {
+   "line": 31,
+   "name": "I2C1_EV"
+  },
+  {
+   "line": 32,
+   "name": "I2C1_ER"
+  },
+  {
+   "line": 35,
+   "name": "SPI1"
+  },
+  {
+   "line": 37,
+   "name": "USART1"
+  },
+  {
+   "line": 38,
+   "name": "USART2"
+  },
+  {
+   "line": 40,
+   "name": "EXTI15_10"
+  },
+  {
+   "line": 51,
+   "name": "SPI3"
+  },
+  {
+   "line": 54,
+   "name": "TIM6_DAC"
+  },
+  {
+   "line": 55,
+   "name": "TIM7"
+  },
+  {
+   "line": 64,
+   "name": "COMP"
+  },
+  {
+   "line": 65,
+   "name": "LPTIM1"
+  },
+  {
+   "line": 66,
+   "name": "LPTIM2"
+  },
+  {
+   "line": 67,
+   "name": "USB"
+  },
+  {
+   "line": 70,
+   "name": "LPUART1"
+  },
+  {
+   "line": 71,
+   "name": "QUADSPI"
+  },
+  {
+   "line": 72,
+   "name": "I2C3_EV"
+  },
+  {
+   "line": 73,
+   "name": "I2C3_ER"
+  },
+  {
+   "line": 74,
+   "name": "SAI1"
+  },
+  {
+   "line": 76,
+   "name": "SWPMI1"
+  },
+  {
+   "line": 77,
+   "name": "TSC"
+  },
+  {
+   "line": 80,
+   "name": "RNG"
+  },
+  {
+   "line": 81,
+   "name": "FPU"
+  },
+  {
+   "line": 82,
+   "name": "CRS"
+  }
+ ]
+}

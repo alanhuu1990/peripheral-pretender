@@ -1,0 +1,15 @@
+{
+  "id": "nucleo_l432kc",
+  "name": "NUCLEO-L432KC (STM32L432KC)",
+  "machine": "nucleo-l432kc",
+  "device": "stm32l432kc",
+  "vcom": "USART2 (PA2/PA3), ST-LINK virtual COM port",
+  "demo_elf": "firmware/stm32-hello/build/stm32l432kc/hello.elf",
+  "source": "ST NUCLEO-L432KC user manual UM1974; LED LD3 on PB3",
+  "image": "top.png",
+  "px_per_mm": 20,
+  "origin_mm": [0, 0],
+  "size_mm": [18, 52],
+  "view_mm": {"origin": [0, 0], "size": [18, 52]},
+  "leds": [{"id": "LD3", "pin": "PB03"}]
+}

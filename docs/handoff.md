@@ -34,6 +34,7 @@ committed tools use `-gdb tcp:127.0.0.1:<port>`; keep it that way.
 | Second target: PIC32CM MC00 Curiosity Pro | done: generic SoC, MC00 device and board, hello, qtests | "Second target: PIC32CM MC00" below, patch 0007 |
 | First 8-bit target: AVR64EA48 Curiosity Nano | done: AVRxt CPU, generic AVR8X SoC, board, Nano Base Click slots, 8x8 G Click, web view; checked on silicon and in MPLAB SIM | "AVR64EA48 Curiosity Nano" below, patches 0021-0025 |
 | Click batch 1 | done on the twin (no physical Click checked): Buzz (tone in the browser), OLED C (SSD1351, live picture; `pp_panel` for future display controllers), Thumbstick (MCP3204, drag the stick), Accel (ADXL345, tilt), RTC 6 (MCP79411, time and alarms), 8x8 R/Y/B, Button R/Y; AVR8X TWI host so I2C Clicks work on the Nano Base; demos and web tests on the MC00 | `playbooks/click-boards.md`, `tools/pp_web/README.md`, patches 0026-0031 |
+| STM32L432/L431 NUCLEO | done: `nucleo-l432kc` / `nucleo-l431rb`, `firmware/stm32-hello` reaches `PP:EXIT 0`; device JSON and web board for L432; upstream `stm32l4x5` qtests still pass | `playbooks/onboard-stm32-board.md`, patch 0086 |
 
 ## Setting up the new machine
 

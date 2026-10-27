@@ -1,0 +1,2336 @@
+From 34b23d47803fa0da5eb9e59f184bebbbf93f7667 Mon Sep 17 00:00:00 2001
+From: Cursor Agent <cursoragent@cursor.com>
+Date: Tue, 27 Oct 2026 08:20:45 +0000
+Subject: [PATCH] [Cursor] STM32L4x1/L4x2 SoCs, NUCLEO boards, PP trace,
+ minimal buses
+
+---
+ hw/arm/Kconfig                    |  42 +++
+ hw/arm/meson.build                |  10 +
+ hw/arm/nucleo_l431rb.c            | 106 ++++++
+ hw/arm/nucleo_l432kc.c            | 106 ++++++
+ hw/arm/stm32l4_soc_trace.c        |  39 +++
+ hw/arm/stm32l4x1_soc.c            | 527 ++++++++++++++++++++++++++++++
+ hw/arm/stm32l4x2_soc.c            | 505 ++++++++++++++++++++++++++++
+ hw/char/stm32l4x5_usart.c         |   5 +
+ hw/gpio/stm32l4x5_gpio.c          |   7 +
+ hw/misc/Kconfig                   |   9 +
+ hw/misc/meson.build               |   3 +
+ hw/misc/stm32l4_flash.c           | 112 +++++++
+ hw/misc/stm32l4_i2c.c             | 137 ++++++++
+ hw/misc/stm32l4_pwr.c             | 128 ++++++++
+ hw/ssi/Kconfig                    |   4 +
+ hw/ssi/meson.build                |   1 +
+ hw/ssi/stm32l4_spi.c              | 129 ++++++++
+ include/hw/arm/stm32l4x1_soc.h    |  60 ++++
+ include/hw/arm/stm32l4x2_soc.h    |  60 ++++
+ include/hw/char/stm32l4x5_usart.h |   1 +
+ include/hw/gpio/stm32l4x5_gpio.h  |   1 +
+ include/hw/misc/stm32l4_i2c.h     |  33 ++
+ include/hw/ssi/stm32l4_spi.h      |  33 ++
+ 23 files changed, 2058 insertions(+)
+ create mode 100644 hw/arm/nucleo_l431rb.c
+ create mode 100644 hw/arm/nucleo_l432kc.c
+ create mode 100644 hw/arm/stm32l4_soc_trace.c
+ create mode 100644 hw/arm/stm32l4x1_soc.c
+ create mode 100644 hw/arm/stm32l4x2_soc.c
+ create mode 100644 hw/misc/stm32l4_flash.c
+ create mode 100644 hw/misc/stm32l4_i2c.c
+ create mode 100644 hw/misc/stm32l4_pwr.c
+ create mode 100644 hw/ssi/stm32l4_spi.c
+ create mode 100644 include/hw/arm/stm32l4x1_soc.h
+ create mode 100644 include/hw/arm/stm32l4x2_soc.h
+ create mode 100644 include/hw/misc/stm32l4_i2c.h
+ create mode 100644 include/hw/ssi/stm32l4_spi.h
+
+diff --git a/hw/arm/Kconfig b/hw/arm/Kconfig
+index d0d9e51..b408715 100644
+--- a/hw/arm/Kconfig
++++ b/hw/arm/Kconfig
+@@ -405,6 +405,48 @@ config B_L475E_IOT01A
+     select STM32L4X5_SOC
+     imply DM163
+ 
++config NUCLEO_L432KC
++    bool
++    default y
++    depends on TCG && ARM
++    select STM32L4X2_SOC
++    select LED
++
++config NUCLEO_L431RB
++    bool
++    default y
++    depends on TCG && ARM
++    select STM32L4X1_SOC
++    select LED
++
++config STM32L4X2_SOC
++    bool
++    select ARM_V7M
++    select OR_IRQ
++    select STM32L4X5_EXTI
++    select STM32L4X5_SYSCFG
++    select STM32L4X5_RCC
++    select STM32L4X5_GPIO
++    select STM32L4X5_USART
++    select STM32L4_FLASH
++    select STM32L4_PWR
++    select STM32L4_I2C
++    select STM32L4_SPI
++
++config STM32L4X1_SOC
++    bool
++    select ARM_V7M
++    select OR_IRQ
++    select STM32L4X5_EXTI
++    select STM32L4X5_SYSCFG
++    select STM32L4X5_RCC
++    select STM32L4X5_GPIO
++    select STM32L4X5_USART
++    select STM32L4_FLASH
++    select STM32L4_PWR
++    select STM32L4_I2C
++    select STM32L4_SPI
++
+ config STM32L4X5_SOC
+     bool
+     select ARM_V7M
+diff --git a/hw/arm/meson.build b/hw/arm/meson.build
+index ffc02db..f195ae6 100644
+--- a/hw/arm/meson.build
++++ b/hw/arm/meson.build
+@@ -37,6 +37,16 @@ arm_common_ss.add(when: 'CONFIG_STM32F205_SOC', if_true: files('stm32f205_soc.c'
+ arm_common_ss.add(when: 'CONFIG_STM32F405_SOC', if_true: files('stm32f405_soc.c'))
+ arm_common_ss.add(when: 'CONFIG_B_L475E_IOT01A', if_true: files('b-l475e-iot01a.c'))
+ arm_common_ss.add(when: 'CONFIG_STM32L4X5_SOC', if_true: files('stm32l4x5_soc.c'))
++arm_common_ss.add(when: 'CONFIG_STM32L4X2_SOC', if_true: files(
++  'stm32l4x2_soc.c',
++  'stm32l4_soc_trace.c',
++))
++arm_common_ss.add(when: 'CONFIG_STM32L4X1_SOC', if_true: files(
++  'stm32l4x1_soc.c',
++  'stm32l4_soc_trace.c',
++))
++arm_common_ss.add(when: 'CONFIG_NUCLEO_L432KC', if_true: files('nucleo_l432kc.c'))
++arm_common_ss.add(when: 'CONFIG_NUCLEO_L431RB', if_true: files('nucleo_l431rb.c'))
+ arm_common_ss.add(when: 'CONFIG_XLNX_ZYNQMP_ARM', if_true: files('xlnx-zynqmp.c', 'xlnx-zcu102.c'))
+ arm_common_ss.add(when: 'CONFIG_XLNX_VERSAL', if_true: files('xlnx-versal.c', 'xlnx-versal-virt.c'))
+ arm_common_ss.add(when: 'CONFIG_FSL_IMX25', if_true: files('fsl-imx25.c', 'imx25_pdk.c'))
+diff --git a/hw/arm/nucleo_l431rb.c b/hw/arm/nucleo_l431rb.c
+new file mode 100644
+index 0000000..aa1bacf
+--- /dev/null
++++ b/hw/arm/nucleo_l431rb.c
+@@ -0,0 +1,106 @@
++/*
++ * ST NUCLEO-L431RB board (STM32L431RB)
++ *
++ * Peripheral Pretender: a personal project. AI-assisted code;
++ * not for submission to upstream QEMU.
++ *
++ * USART2 (PA2/PA3) is the ST-LINK virtual COM port. User LED LD3 is PB13.
++ *
++ * SPDX-License-Identifier: GPL-2.0-or-later
++ */
++
++#include "qemu/osdep.h"
++#include "qapi/error.h"
++#include "hw/core/boards.h"
++#include "hw/core/qdev-properties.h"
++#include "hw/arm/boot.h"
++#include "hw/arm/machines-qom.h"
++#include "hw/arm/stm32l4x1_soc.h"
++#include "hw/gpio/stm32l4x5_gpio.h"
++#include "hw/misc/led.h"
++#include "chardev/char.h"
++
++#define TYPE_NUCLEO_L431RB MACHINE_TYPE_NAME("nucleo-l431rb")
++OBJECT_DECLARE_SIMPLE_TYPE(NucleoL431rbMachineState, NUCLEO_L431RB)
++
++#define NUCLEO_LED_PIN (1 * GPIO_NUM_PINS + 13) /* PB13 */
++
++typedef struct NucleoL431rbMachineState {
++    MachineState parent_obj;
++    Stm32l4x1SocState soc;
++    LEDState led;
++    char *trace;
++} NucleoL431rbMachineState;
++
++static void nucleo_l431rb_init(MachineState *machine)
++{
++    NucleoL431rbMachineState *s = NUCLEO_L431RB(machine);
++    const Stm32l4x1SocClass *sc;
++    DeviceState *led;
++
++    object_initialize_child(OBJECT(machine), "soc", &s->soc,
++                            TYPE_STM32L4X1RB_SOC);
++    sysbus_realize(SYS_BUS_DEVICE(&s->soc), &error_fatal);
++
++    sc = STM32L4X1_SOC_GET_CLASS(&s->soc);
++    armv7m_load_kernel(s->soc.armv7m.cpu, machine->kernel_filename, 0,
++                       sc->flash_size);
++
++    object_initialize_child(OBJECT(machine), "led", &s->led, TYPE_LED);
++    led = DEVICE(&s->led);
++    qdev_prop_set_string(led, "color", "green");
++    qdev_prop_set_bit(led, "gpio-active-high", true);
++    qdev_realize(led, NULL, &error_fatal);
++    qdev_connect_gpio_out(DEVICE(&s->soc.gpio[1]), 13,
++                          qdev_get_gpio_in(led, 0));
++
++    if (s->trace) {
++        stm32l4x1_soc_trace(&s->soc, OBJECT(machine), s->trace);
++    }
++}
++
++static char *nucleo_l431rb_get_trace(Object *obj, Error **errp)
++{
++    return g_strdup(NUCLEO_L431RB(obj)->trace);
++}
++
++static void nucleo_l431rb_set_trace(Object *obj, const char *value, Error **errp)
++{
++    NucleoL431rbMachineState *s = NUCLEO_L431RB(obj);
++
++    g_free(s->trace);
++    s->trace = g_strdup(value);
++}
++
++static void nucleo_l431rb_class_init(ObjectClass *oc, const void *data)
++{
++    MachineClass *mc = MACHINE_CLASS(oc);
++    static const char *valid_cpus[] = {
++        ARM_CPU_TYPE_NAME("cortex-m4"),
++        NULL,
++    };
++
++    mc->desc = "ST NUCLEO-L431RB (STM32L431RB)";
++    mc->init = nucleo_l431rb_init;
++    mc->valid_cpu_types = valid_cpus;
++    mc->default_cpus = 1;
++    mc->default_ram_size = 0;
++    mc->default_ram_id = NULL;
++
++    object_class_property_add_str(oc, "trace", nucleo_l431rb_get_trace,
++                                  nucleo_l431rb_set_trace);
++    object_class_property_set_description(oc, "trace",
++        "Chardev id of the event recorder (pads, USART traffic, NVIC)");
++}
++
++static const TypeInfo nucleo_l431rb_machine_types[] = {
++    {
++        .name = TYPE_NUCLEO_L431RB,
++        .parent = TYPE_MACHINE,
++        .instance_size = sizeof(NucleoL431rbMachineState),
++        .class_init = nucleo_l431rb_class_init,
++        .interfaces = arm_machine_interfaces,
++    },
++};
++
++DEFINE_TYPES(nucleo_l431rb_machine_types)
+diff --git a/hw/arm/nucleo_l432kc.c b/hw/arm/nucleo_l432kc.c
+new file mode 100644
+index 0000000..4cc5c29
+--- /dev/null
++++ b/hw/arm/nucleo_l432kc.c
+@@ -0,0 +1,106 @@
++/*
++ * ST NUCLEO-L432KC board (STM32L432KC)
++ *
++ * Peripheral Pretender: a personal project. AI-assisted code;
++ * not for submission to upstream QEMU.
++ *
++ * USART2 (PA2/PA3) is the ST-LINK virtual COM port. User LED LD3 is PB3.
++ *
++ * SPDX-License-Identifier: GPL-2.0-or-later
++ */
++
++#include "qemu/osdep.h"
++#include "qapi/error.h"
++#include "hw/core/boards.h"
++#include "hw/core/qdev-properties.h"
++#include "hw/arm/boot.h"
++#include "hw/arm/machines-qom.h"
++#include "hw/arm/stm32l4x2_soc.h"
++#include "hw/gpio/stm32l4x5_gpio.h"
++#include "hw/misc/led.h"
++#include "chardev/char.h"
++
++#define TYPE_NUCLEO_L432KC MACHINE_TYPE_NAME("nucleo-l432kc")
++OBJECT_DECLARE_SIMPLE_TYPE(NucleoL432kcMachineState, NUCLEO_L432KC)
++
++#define NUCLEO_LED_PIN (1 * GPIO_NUM_PINS + 3) /* PB3 */
++
++typedef struct NucleoL432kcMachineState {
++    MachineState parent_obj;
++    Stm32l4x2SocState soc;
++    LEDState led;
++    char *trace;
++} NucleoL432kcMachineState;
++
++static void nucleo_l432kc_init(MachineState *machine)
++{
++    NucleoL432kcMachineState *s = NUCLEO_L432KC(machine);
++    const Stm32l4x2SocClass *sc;
++    DeviceState *led;
++
++    object_initialize_child(OBJECT(machine), "soc", &s->soc,
++                            TYPE_STM32L4X2KC_SOC);
++    sysbus_realize(SYS_BUS_DEVICE(&s->soc), &error_fatal);
++
++    sc = STM32L4X2_SOC_GET_CLASS(&s->soc);
++    armv7m_load_kernel(s->soc.armv7m.cpu, machine->kernel_filename, 0,
++                       sc->flash_size);
++
++    object_initialize_child(OBJECT(machine), "led", &s->led, TYPE_LED);
++    led = DEVICE(&s->led);
++    qdev_prop_set_string(led, "color", "green");
++    qdev_prop_set_bit(led, "gpio-active-high", true);
++    qdev_realize(led, NULL, &error_fatal);
++    qdev_connect_gpio_out(DEVICE(&s->soc.gpio[1]), 3,
++                          qdev_get_gpio_in(led, 0));
++
++    if (s->trace) {
++        stm32l4x2_soc_trace(&s->soc, OBJECT(machine), s->trace);
++    }
++}
++
++static char *nucleo_l432kc_get_trace(Object *obj, Error **errp)
++{
++    return g_strdup(NUCLEO_L432KC(obj)->trace);
++}
++
++static void nucleo_l432kc_set_trace(Object *obj, const char *value, Error **errp)
++{
++    NucleoL432kcMachineState *s = NUCLEO_L432KC(obj);
++
++    g_free(s->trace);
++    s->trace = g_strdup(value);
++}
++
++static void nucleo_l432kc_class_init(ObjectClass *oc, const void *data)
++{
++    MachineClass *mc = MACHINE_CLASS(oc);
++    static const char *valid_cpus[] = {
++        ARM_CPU_TYPE_NAME("cortex-m4"),
++        NULL,
++    };
++
++    mc->desc = "ST NUCLEO-L432KC (STM32L432KC)";
++    mc->init = nucleo_l432kc_init;
++    mc->valid_cpu_types = valid_cpus;
++    mc->default_cpus = 1;
++    mc->default_ram_size = 0;
++    mc->default_ram_id = NULL;
++
++    object_class_property_add_str(oc, "trace", nucleo_l432kc_get_trace,
++                                  nucleo_l432kc_set_trace);
++    object_class_property_set_description(oc, "trace",
++        "Chardev id of the event recorder (pads, USART traffic, NVIC)");
++}
++
++static const TypeInfo nucleo_l432kc_machine_types[] = {
++    {
++        .name = TYPE_NUCLEO_L432KC,
++        .parent = TYPE_MACHINE,
++        .instance_size = sizeof(NucleoL432kcMachineState),
++        .class_init = nucleo_l432kc_class_init,
++        .interfaces = arm_machine_interfaces,
++    },
++};
++
++DEFINE_TYPES(nucleo_l432kc_machine_types)
+diff --git a/hw/arm/stm32l4_soc_trace.c b/hw/arm/stm32l4_soc_trace.c
+new file mode 100644
+index 0000000..5e14caf
+--- /dev/null
++++ b/hw/arm/stm32l4_soc_trace.c
+@@ -0,0 +1,39 @@
++/*
++ * Event recorder glue for STM32L4 SoCs
++ *
++ * Peripheral Pretender: a personal project. AI-assisted code;
++ * not for submission to upstream QEMU.
++ *
++ * SPDX-License-Identifier: GPL-2.0-or-later
++ */
++
++#include "qemu/osdep.h"
++#include "hw/arm/stm32l4x2_soc.h"
++#include "hw/arm/stm32l4x1_soc.h"
++#include "hw/intc/armv7m_nvic.h"
++#include "hw/misc/pp_trace.h"
++
++static void stm32l4_soc_trace_irq(void *opaque, int irq, int what)
++{
++    static const PpTraceKind kind[] = {
++        PP_TRACE_IRQ_PEND, PP_TRACE_IRQ_ENTER, PP_TRACE_IRQ_EXIT,
++    };
++
++    if (what >= 0 && what < 3) {
++        pp_trace_event(kind[what], PP_TRACE_SRC_NVIC, irq, 0);
++    }
++}
++
++void stm32l4x2_soc_trace(Stm32l4x2SocState *s, Object *machine,
++                         const char *chardev)
++{
++    armv7m_nvic_observe(&s->armv7m.nvic, stm32l4_soc_trace_irq, NULL);
++    pp_trace_attach(machine, chardev, 0);
++}
++
++void stm32l4x1_soc_trace(Stm32l4x1SocState *s, Object *machine,
++                         const char *chardev)
++{
++    armv7m_nvic_observe(&s->armv7m.nvic, stm32l4_soc_trace_irq, NULL);
++    pp_trace_attach(machine, chardev, 0);
++}
+diff --git a/hw/arm/stm32l4x1_soc.c b/hw/arm/stm32l4x1_soc.c
+new file mode 100644
+index 0000000..f7bff66
+--- /dev/null
++++ b/hw/arm/stm32l4x1_soc.c
+@@ -0,0 +1,527 @@
++/*
++ * STM32L4x1 SoC family (STM32L432/L442)
++ *
++ * Peripheral Pretender: a personal project. AI-assisted code;
++ * not for submission to upstream QEMU.
++ *
++ * SPDX-License-Identifier: GPL-2.0-or-later
++ *
++ * Derived from upstream stm32l4x5_soc.c (GPL-2.0-or-later).
++ * Reference: ST RM0394 (STM32L4x1/x2/x3).
++ */
++
++#include "qemu/osdep.h"
++#include "qemu/units.h"
++#include "qapi/error.h"
++#include "system/address-spaces.h"
++#include "system/system.h"
++#include "hw/core/or-irq.h"
++#include "hw/arm/stm32l4x1_soc.h"
++#include "hw/char/stm32l4x5_usart.h"
++#include "hw/gpio/stm32l4x5_gpio.h"
++#include "hw/core/qdev-clock.h"
++#include "hw/misc/unimp.h"
++#include "hw/misc/stm32l4_i2c.h"
++#include "hw/ssi/stm32l4_spi.h"
++
++#define TYPE_STM32L4_FLASH "stm32l4-flash"
++#define TYPE_STM32L4_PWR "stm32l4-pwr"
++
++#define FLASH_BASE_ADDRESS 0x08000000
++#define SRAM1_BASE_ADDRESS 0x20000000
++#define SRAM1_SIZE (48 * KiB)
++#define SRAM2_BASE_ADDRESS 0x10000000
++#define SRAM2_SIZE (16 * KiB)
++
++#define EXTI_ADDR 0x40010400
++#define SYSCFG_ADDR 0x40010000
++
++#define NUM_EXTI_IRQ 40
++/* Match exti line connections with their CPU IRQ number */
++/* See Vector Table (Reference Manual p.396) */
++/*
++ * Some IRQs are connected to the same CPU IRQ (denoted by -1)
++ * and require an intermediary OR gate to function correctly.
++ */
++static const int exti_irq[NUM_EXTI_IRQ] = {
++    6,                      /* GPIO[0]                 */
++    7,                      /* GPIO[1]                 */
++    8,                      /* GPIO[2]                 */
++    9,                      /* GPIO[3]                 */
++    10,                     /* GPIO[4]                 */
++    -1, -1, -1, -1, -1,     /* GPIO[5..9] OR gate 23   */
++    -1, -1, -1, -1, -1, -1, /* GPIO[10..15] OR gate 40 */
++    -1,                     /* PVD OR gate 1           */
++    67,                     /* OTG_FS_WKUP, Direct     */
++    41,                     /* RTC_ALARM               */
++    2,                      /* RTC_TAMP_STAMP2/CSS_LSE */
++    3,                      /* RTC wakeup timer        */
++    -1, -1,                 /* COMP[1..2] OR gate 63   */
++    31,                     /* I2C1 wakeup, Direct     */
++    33,                     /* I2C2 wakeup, Direct     */
++    72,                     /* I2C3 wakeup, Direct     */
++    37,                     /* USART1 wakeup, Direct   */
++    38,                     /* USART2 wakeup, Direct   */
++    39,                     /* USART3 wakeup, Direct   */
++    52,                     /* UART4 wakeup, Direct    */
++    53,                     /* UART4 wakeup, Direct    */
++    70,                     /* LPUART1 wakeup, Direct  */
++    65,                     /* LPTIM1, Direct          */
++    66,                     /* LPTIM2, Direct          */
++    76,                     /* SWPMI1 wakeup, Direct   */
++    -1, -1, -1, -1,         /* PVM[1..4] OR gate 1     */
++    78                      /* LCD wakeup, Direct      */
++};
++#define RCC_BASE_ADDRESS 0x40021000
++#define RCC_IRQ 5
++
++#define EXTI_USART1_IRQ 26
++#define EXTI_UART4_IRQ 29
++#define EXTI_LPUART1_IRQ 31
++
++static const int exti_or_gates_out[NUM_EXTI_OR_GATES] = {
++    23, 40, 63, 1,
++};
++
++static const int exti_or_gates_num_lines_in[NUM_EXTI_OR_GATES] = {
++    5, 6, 2, 5,
++};
++
++/* 3 OR gates with consecutive inputs */
++#define NUM_EXTI_SIMPLE_OR_GATES 3
++static const int exti_or_gates_first_line_in[NUM_EXTI_SIMPLE_OR_GATES] = {
++    5, 10, 21,
++};
++
++/* 1 OR gate with non-consecutive inputs */
++#define EXTI_OR_GATE1_NUM_LINES_IN 5
++static const int exti_or_gate1_lines_in[EXTI_OR_GATE1_NUM_LINES_IN] = {
++    16, 35, 36, 37, 38,
++};
++
++static const struct {
++    uint32_t addr;
++    uint32_t moder_reset;
++    uint32_t ospeedr_reset;
++    uint32_t pupdr_reset;
++} stm32l4x1_gpio_cfg[STM32L4X1_NUM_GPIOS] = {
++    { 0x48000000, 0xABFFFFFF, 0x0C000000, 0x64000000 },
++    { 0x48000400, 0xFFFFFEBF, 0x00000000, 0x00000100 },
++    { 0x48000800, 0xFFFFFFFF, 0x00000000, 0x00000000 },
++    { 0x48000C00, 0xFFFFFFFF, 0x00000000, 0x00000000 },
++    { 0x48001000, 0xFFFFFFFF, 0x00000000, 0x00000000 },
++    { 0x48001C00, 0x0000000F, 0x00000000, 0x00000000 },
++};
++
++static const unsigned stm32l4x1_gpio_syscfg_group[STM32L4X1_NUM_GPIOS] = {
++    0, 1, 2, 3, 4, 7,
++};
++
++static const char stm32l4x1_gpio_letter[STM32L4X1_NUM_GPIOS] = {
++    'a', 'b', 'c', 'd', 'e', 'h',
++};
++
++static const hwaddr usart_addr[STM32L4X1_NUM_USARTS] = {
++    0x40013800, /* USART1 */
++    0x40004400, /* USART2 */
++    0x40004800, /* USART3 */
++};
++
++#define LPUART_BASE_ADDRESS 0x40008000
++
++static void stm32l4x1_soc_initfn(Object *obj)
++{
++    Stm32l4x1SocState *s = STM32L4X1_SOC(obj);
++
++    object_initialize_child(obj, "exti", &s->exti, TYPE_STM32L4X5_EXTI);
++    for (unsigned i = 0; i < NUM_EXTI_OR_GATES; i++) {
++        object_initialize_child(obj, "exti_or_gates[*]", &s->exti_or_gates[i],
++                                TYPE_OR_IRQ);
++    }
++    object_initialize_child(obj, "syscfg", &s->syscfg, TYPE_STM32L4X5_SYSCFG);
++    object_initialize_child(obj, "rcc", &s->rcc, TYPE_STM32L4X5_RCC);
++
++    for (unsigned i = 0; i < STM32L4X1_NUM_GPIOS; i++) {
++        g_autofree char *name = g_strdup_printf("gpio%c", stm32l4x1_gpio_letter[i]);
++        object_initialize_child(obj, name, &s->gpio[i], TYPE_STM32L4X5_GPIO);
++    }
++
++    for (int i = 0; i < STM32L4X1_NUM_USARTS; i++) {
++        object_initialize_child(obj, "usart[*]", &s->usart[i],
++                                TYPE_STM32L4X5_USART);
++    }
++
++    object_initialize_child(obj, "lpuart1", &s->lpuart,
++                            TYPE_STM32L4X5_LPUART);
++}
++
++static void stm32l4x1_soc_realize(DeviceState *dev_soc, Error **errp)
++{
++    ERRP_GUARD();
++    Stm32l4x1SocState *s = STM32L4X1_SOC(dev_soc);
++    const Stm32l4x1SocClass *sc = STM32L4X1_SOC_GET_CLASS(dev_soc);
++    MemoryRegion *system_memory = get_system_memory();
++    DeviceState *armv7m, *dev;
++    SysBusDevice *busdev;
++    uint32_t pin_index;
++
++    if (!memory_region_init_rom(&s->flash, OBJECT(dev_soc), "flash",
++                                sc->flash_size, errp)) {
++        return;
++    }
++    memory_region_init_alias(&s->flash_alias, OBJECT(dev_soc),
++                             "flash_boot_alias", &s->flash, 0,
++                             sc->flash_size);
++
++    memory_region_add_subregion(system_memory, FLASH_BASE_ADDRESS, &s->flash);
++    memory_region_add_subregion(system_memory, 0, &s->flash_alias);
++
++    if (!memory_region_init_ram(&s->sram1, OBJECT(dev_soc), "SRAM1", SRAM1_SIZE,
++                                errp)) {
++        return;
++    }
++    memory_region_add_subregion(system_memory, SRAM1_BASE_ADDRESS, &s->sram1);
++
++    if (!memory_region_init_ram(&s->sram2, OBJECT(dev_soc), "SRAM2", SRAM2_SIZE,
++                                errp)) {
++        return;
++    }
++    memory_region_add_subregion(system_memory, SRAM2_BASE_ADDRESS, &s->sram2);
++
++    object_initialize_child(OBJECT(dev_soc), "armv7m", &s->armv7m, TYPE_ARMV7M);
++    armv7m = DEVICE(&s->armv7m);
++    qdev_prop_set_uint32(armv7m, "num-irq", 83);
++    qdev_prop_set_uint32(armv7m, "num-prio-bits", 4);
++    qdev_prop_set_string(armv7m, "cpu-type", ARM_CPU_TYPE_NAME("cortex-m4"));
++    qdev_prop_set_bit(armv7m, "enable-bitband", true);
++    qdev_connect_clock_in(armv7m, "cpuclk",
++        qdev_get_clock_out(DEVICE(&(s->rcc)), "cortex-fclk-out"));
++    qdev_connect_clock_in(armv7m, "refclk",
++        qdev_get_clock_out(DEVICE(&(s->rcc)), "cortex-refclk-out"));
++    object_property_set_link(OBJECT(&s->armv7m), "memory",
++                             OBJECT(system_memory), &error_abort);
++    if (!sysbus_realize(SYS_BUS_DEVICE(&s->armv7m), errp)) {
++        return;
++    }
++
++    /* GPIOs */
++    for (unsigned i = 0; i < STM32L4X1_NUM_GPIOS; i++) {
++        g_autofree char *name = g_strdup_printf("%c", stm32l4x1_gpio_letter[i]);
++        dev = DEVICE(&s->gpio[i]);
++        qdev_prop_set_string(dev, "name", name);
++        qdev_prop_set_uint32(dev, "mode-reset",
++                             stm32l4x1_gpio_cfg[i].moder_reset);
++        qdev_prop_set_uint32(dev, "ospeed-reset",
++                             stm32l4x1_gpio_cfg[i].ospeedr_reset);
++        qdev_prop_set_uint32(dev, "pupd-reset",
++                            stm32l4x1_gpio_cfg[i].pupdr_reset);
++        qdev_prop_set_uint32(dev, "pp-trace-pad-base",
++                             stm32l4x1_gpio_syscfg_group[i] * GPIO_NUM_PINS);
++
++        busdev = SYS_BUS_DEVICE(&s->gpio[i]);
++        g_free(name);
++        name = g_strdup_printf("gpio%c-out", stm32l4x1_gpio_letter[i]);
++        qdev_connect_clock_in(DEVICE(&s->gpio[i]), "clk",
++            qdev_get_clock_out(DEVICE(&(s->rcc)), name));
++        if (!sysbus_realize(busdev, errp)) {
++            return;
++        }
++        sysbus_mmio_map(busdev, 0, stm32l4x1_gpio_cfg[i].addr);
++    }
++
++    /* System configuration controller */
++    busdev = SYS_BUS_DEVICE(&s->syscfg);
++    qdev_connect_clock_in(DEVICE(&s->syscfg), "clk",
++        qdev_get_clock_out(DEVICE(&(s->rcc)), "syscfg-out"));
++    if (!sysbus_realize(busdev, errp)) {
++        return;
++    }
++    sysbus_mmio_map(busdev, 0, SYSCFG_ADDR);
++
++    for (unsigned i = 0; i < STM32L4X1_NUM_GPIOS; i++) {
++        unsigned g = stm32l4x1_gpio_syscfg_group[i];
++        for (unsigned j = 0; j < GPIO_NUM_PINS; j++) {
++            pin_index = GPIO_NUM_PINS * g + j;
++            qdev_connect_gpio_out(DEVICE(&s->gpio[i]), j,
++                                  qdev_get_gpio_in(DEVICE(&s->syscfg),
++                                  pin_index));
++        }
++    }
++
++    qdev_pass_gpios(DEVICE(&s->syscfg), dev_soc, NULL);
++
++    /* EXTI device */
++    busdev = SYS_BUS_DEVICE(&s->exti);
++    if (!sysbus_realize(busdev, errp)) {
++        return;
++    }
++    sysbus_mmio_map(busdev, 0, EXTI_ADDR);
++
++    /* IRQs with fan-in that require an OR gate */
++    for (unsigned i = 0; i < NUM_EXTI_OR_GATES; i++) {
++        if (!object_property_set_int(OBJECT(&s->exti_or_gates[i]), "num-lines",
++                                     exti_or_gates_num_lines_in[i], errp)) {
++            return;
++        }
++        if (!qdev_realize(DEVICE(&s->exti_or_gates[i]), NULL, errp)) {
++            return;
++        }
++
++        qdev_connect_gpio_out(DEVICE(&s->exti_or_gates[i]), 0,
++            qdev_get_gpio_in(armv7m, exti_or_gates_out[i]));
++
++        if (i < NUM_EXTI_SIMPLE_OR_GATES) {
++            /* consecutive inputs for OR gates 23, 40, 63 */
++            for (unsigned j = 0; j < exti_or_gates_num_lines_in[i]; j++) {
++                sysbus_connect_irq(SYS_BUS_DEVICE(&s->exti),
++                    exti_or_gates_first_line_in[i] + j,
++                    qdev_get_gpio_in(DEVICE(&s->exti_or_gates[i]), j));
++            }
++        } else {
++            /* non-consecutive inputs for OR gate 1 */
++            for (unsigned j = 0; j < EXTI_OR_GATE1_NUM_LINES_IN; j++) {
++                sysbus_connect_irq(SYS_BUS_DEVICE(&s->exti),
++                    exti_or_gate1_lines_in[j],
++                    qdev_get_gpio_in(DEVICE(&s->exti_or_gates[i]), j));
++            }
++        }
++    }
++
++    /* IRQs that don't require fan-in */
++    for (unsigned i = 0; i < NUM_EXTI_IRQ; i++) {
++        if (exti_irq[i] != -1) {
++            sysbus_connect_irq(busdev, i,
++                               qdev_get_gpio_in(armv7m, exti_irq[i]));
++        }
++    }
++
++    /* Connect SYSCFG to EXTI */
++    for (unsigned i = 0; i < GPIO_NUM_PINS; i++) {
++        qdev_connect_gpio_out(DEVICE(&s->syscfg), i,
++                              qdev_get_gpio_in(DEVICE(&s->exti), i));
++    }
++
++    /* RCC device */
++    busdev = SYS_BUS_DEVICE(&s->rcc);
++    if (!sysbus_realize(busdev, errp)) {
++        return;
++    }
++    sysbus_mmio_map(busdev, 0, RCC_BASE_ADDRESS);
++    sysbus_connect_irq(busdev, 0, qdev_get_gpio_in(armv7m, RCC_IRQ));
++
++    /* USART devices */
++    for (int i = 0; i < STM32L4X1_NUM_USARTS; i++) {
++        g_autofree char *name = g_strdup_printf("usart%d-out", i + 1);
++        dev = DEVICE(&(s->usart[i]));
++        qdev_prop_set_chr(dev, "chardev", serial_hd(i == 1 ? 0 : 1));
++        qdev_connect_clock_in(dev, "clk",
++            qdev_get_clock_out(DEVICE(&(s->rcc)), name));
++        busdev = SYS_BUS_DEVICE(dev);
++        if (!sysbus_realize(busdev, errp)) {
++            return;
++        }
++        sysbus_mmio_map(busdev, 0, usart_addr[i]);
++        sysbus_connect_irq(busdev, 0, qdev_get_gpio_in(DEVICE(&s->exti),
++                                                       EXTI_USART1_IRQ + i));
++    }
++
++    /* LPUART device*/
++    dev = DEVICE(&(s->lpuart));
++    qdev_prop_set_chr(dev, "chardev", serial_hd(2));
++    qdev_connect_clock_in(dev, "clk",
++        qdev_get_clock_out(DEVICE(&(s->rcc)), "lpuart1-out"));
++    busdev = SYS_BUS_DEVICE(dev);
++    if (!sysbus_realize(busdev, errp)) {
++        return;
++    }
++    sysbus_mmio_map(busdev, 0, LPUART_BASE_ADDRESS);
++    sysbus_connect_irq(busdev, 0, qdev_get_gpio_in(DEVICE(&s->exti),
++                                                   EXTI_LPUART1_IRQ));
++
++
++    /* PWR, flash interface, I2C and SPI (minimal models) */
++    dev = qdev_new(TYPE_STM32L4_PWR);
++    busdev = SYS_BUS_DEVICE(dev);
++    sysbus_realize(busdev, errp);
++    if (*errp) {
++        return;
++    }
++    sysbus_mmio_map(busdev, 0, 0x40007000);
++
++    dev = qdev_new(TYPE_STM32L4_FLASH);
++    busdev = SYS_BUS_DEVICE(dev);
++    sysbus_realize(busdev, errp);
++    if (*errp) {
++        return;
++    }
++    sysbus_mmio_map(busdev, 0, 0x40022000);
++
++    dev = qdev_new(TYPE_STM32L4_I2C);
++    busdev = SYS_BUS_DEVICE(dev);
++    sysbus_realize(busdev, errp);
++    if (*errp) {
++        return;
++    }
++    sysbus_mmio_map(busdev, 0, 0x40005400);
++    sysbus_connect_irq(busdev, 0, qdev_get_gpio_in(armv7m, 31));
++    sysbus_connect_irq(busdev, 1, qdev_get_gpio_in(armv7m, 32));
++
++    dev = qdev_new(TYPE_STM32L4_I2C);
++    busdev = SYS_BUS_DEVICE(dev);
++    sysbus_realize(busdev, errp);
++    if (*errp) {
++        return;
++    }
++    sysbus_mmio_map(busdev, 0, 0x40005C00);
++    sysbus_connect_irq(busdev, 0, qdev_get_gpio_in(armv7m, 72));
++    sysbus_connect_irq(busdev, 1, qdev_get_gpio_in(armv7m, 73));
++
++    dev = qdev_new(TYPE_STM32L4_SPI);
++    busdev = SYS_BUS_DEVICE(dev);
++    sysbus_realize(busdev, errp);
++    if (*errp) {
++        return;
++    }
++    sysbus_mmio_map(busdev, 0, 0x40013000);
++    sysbus_connect_irq(busdev, 0, qdev_get_gpio_in(armv7m, 35));
++
++    dev = qdev_new(TYPE_STM32L4_SPI);
++    busdev = SYS_BUS_DEVICE(dev);
++    sysbus_realize(busdev, errp);
++    if (*errp) {
++        return;
++    }
++    sysbus_mmio_map(busdev, 0, 0x40003C00);
++    sysbus_connect_irq(busdev, 0, qdev_get_gpio_in(armv7m, 51));
++
++    dev = qdev_new(TYPE_STM32L4_SPI);
++    busdev = SYS_BUS_DEVICE(dev);
++    sysbus_realize(busdev, errp);
++    if (*errp) {
++        return;
++    }
++    sysbus_mmio_map(busdev, 0, 0x40003800);
++    sysbus_connect_irq(busdev, 0, qdev_get_gpio_in(armv7m, 36));
++
++    dev = qdev_new(TYPE_STM32L4_I2C);
++    busdev = SYS_BUS_DEVICE(dev);
++    sysbus_realize(busdev, errp);
++    if (*errp) {
++        return;
++    }
++    sysbus_mmio_map(busdev, 0, 0x40005800);
++    sysbus_connect_irq(busdev, 0, qdev_get_gpio_in(armv7m, 33));
++    sysbus_connect_irq(busdev, 1, qdev_get_gpio_in(armv7m, 34));
++
++    /* APB1 BUS */
++    create_unimplemented_device("TIM2",      0x40000000, 0x400);
++    create_unimplemented_device("TIM3",      0x40000400, 0x400);
++    create_unimplemented_device("TIM4",      0x40000800, 0x400);
++    create_unimplemented_device("TIM5",      0x40000C00, 0x400);
++    create_unimplemented_device("TIM6",      0x40001000, 0x400);
++    create_unimplemented_device("TIM7",      0x40001400, 0x400);
++    /* RESERVED:    0x40001800, 0x1000 */
++    create_unimplemented_device("RTC",       0x40002800, 0x400);
++    create_unimplemented_device("WWDG",      0x40002C00, 0x400);
++    create_unimplemented_device("IWDG",      0x40003000, 0x400);
++    /* RESERVED:    0x40001800, 0x400 */
++    create_unimplemented_device("SPI2",      0x40003800, 0x400);
++    /* SPI3 */
++    /* RESERVED:    0x40004000, 0x400 */
++    /* I2C1 */
++    create_unimplemented_device("I2C2",      0x40005800, 0x400);
++    /* I2C3 */
++    /* RESERVED:    0x40006000, 0x400 */
++    create_unimplemented_device("CAN1",      0x40006400, 0x400);
++    /* RESERVED:    0x40006800, 0x400 */
++    /* PWR */
++    create_unimplemented_device("DAC1",      0x40007400, 0x400);
++    create_unimplemented_device("OPAMP",     0x40007800, 0x400);
++    create_unimplemented_device("LPTIM1",    0x40007C00, 0x400);
++    /* RESERVED:    0x40008400, 0x400 */
++    create_unimplemented_device("SWPMI1",    0x40008800, 0x400);
++    /* RESERVED:    0x40008C00, 0x800 */
++    create_unimplemented_device("LPTIM2",    0x40009400, 0x400);
++    /* RESERVED:    0x40009800, 0x6800 */
++
++    /* APB2 BUS */
++    create_unimplemented_device("VREFBUF",   0x40010030, 0x1D0);
++    create_unimplemented_device("COMP",      0x40010200, 0x200);
++    /* RESERVED:    0x40010800, 0x1400 */
++    create_unimplemented_device("FIREWALL",  0x40011C00, 0x400);
++    /* RESERVED:    0x40012000, 0x800 */
++    create_unimplemented_device("SDMMC1",    0x40012800, 0x400);
++    create_unimplemented_device("TIM1",      0x40012C00, 0x400);
++    /* SPI1 */
++    create_unimplemented_device("TIM8",      0x40013400, 0x400);
++    /* RESERVED:    0x40013C00, 0x400 */
++    create_unimplemented_device("TIM15",     0x40014000, 0x400);
++    create_unimplemented_device("TIM16",     0x40014400, 0x400);
++    create_unimplemented_device("TIM17",     0x40014800, 0x400);
++    /* RESERVED:    0x40014C00, 0x800 */
++    create_unimplemented_device("SAI1",      0x40015400, 0x400);
++    create_unimplemented_device("SAI2",      0x40015800, 0x400);
++    /* RESERVED:    0x40015C00, 0x400 */
++    create_unimplemented_device("DFSDM1",    0x40016000, 0x400);
++    /* RESERVED:    0x40016400, 0x9C00 */
++
++    /* AHB1 BUS */
++    create_unimplemented_device("DMA1",      0x40020000, 0x400);
++    create_unimplemented_device("DMA2",      0x40020400, 0x400);
++    /* RESERVED:    0x40020800, 0x800 */
++    /* RESERVED:    0x40021400, 0xC00 */
++    /* FLASH */
++    /* RESERVED:    0x40022400, 0xC00 */
++    create_unimplemented_device("CRC",       0x40023000, 0x400);
++    /* RESERVED:    0x40023400, 0x400 */
++    create_unimplemented_device("TSC",       0x40024000, 0x400);
++
++    /* RESERVED:    0x40024400, 0x7FDBC00 */
++
++    /* AHB2 BUS */
++    /* RESERVED:    0x48002000, 0x7FDBC00 */
++    create_unimplemented_device("OTG_FS",    0x50000000, 0x40000);
++    create_unimplemented_device("ADC",       0x50040000, 0x400);
++    /* RESERVED:    0x50040400, 0x20400 */
++    create_unimplemented_device("RNG",       0x50060800, 0x400);
++
++    /* AHB3 BUS */
++    create_unimplemented_device("FMC",       0xA0000000, 0x1000);
++    create_unimplemented_device("QUADSPI",   0xA0001000, 0x400);
++}
++
++static void stm32l4x1_soc_class_init(ObjectClass *klass, const void *data)
++{
++
++    DeviceClass *dc = DEVICE_CLASS(klass);
++
++    dc->realize = stm32l4x1_soc_realize;
++    /* Reason: Mapped at fixed location on the system bus */
++    dc->user_creatable = false;
++    /* No vmstate or reset required: device has no internal state */
++}
++
++static void stm32l4x1rb_soc_class_init(ObjectClass *oc, const void *data)
++{
++    Stm32l4x1SocClass *ssc = STM32L4X1_SOC_CLASS(oc);
++
++    ssc->flash_size = 256 * KiB;
++}
++
++static const TypeInfo stm32l4x1_soc_types[] = {
++    {
++        .name           = TYPE_STM32L4X1RB_SOC,
++        .parent         = TYPE_STM32L4X1_SOC,
++        .class_init     = stm32l4x1rb_soc_class_init,
++    }, {
++        .name           = TYPE_STM32L4X1_SOC,
++        .parent         = TYPE_SYS_BUS_DEVICE,
++        .instance_size  = sizeof(Stm32l4x1SocState),
++        .instance_init  = stm32l4x1_soc_initfn,
++        .class_size     = sizeof(Stm32l4x1SocClass),
++        .class_init     = stm32l4x1_soc_class_init,
++        .abstract       = true,
++    }
++};
++
++DEFINE_TYPES(stm32l4x1_soc_types)
+diff --git a/hw/arm/stm32l4x2_soc.c b/hw/arm/stm32l4x2_soc.c
+new file mode 100644
+index 0000000..d191725
+--- /dev/null
++++ b/hw/arm/stm32l4x2_soc.c
+@@ -0,0 +1,505 @@
++/*
++ * STM32L4x2 SoC family (STM32L432/L442)
++ *
++ * Peripheral Pretender: a personal project. AI-assisted code;
++ * not for submission to upstream QEMU.
++ *
++ * SPDX-License-Identifier: GPL-2.0-or-later
++ *
++ * Derived from upstream stm32l4x5_soc.c (GPL-2.0-or-later).
++ * Reference: ST RM0394 (STM32L4x1/x2/x3).
++ */
++
++#include "qemu/osdep.h"
++#include "qemu/units.h"
++#include "qapi/error.h"
++#include "system/address-spaces.h"
++#include "system/system.h"
++#include "hw/core/or-irq.h"
++#include "hw/arm/stm32l4x2_soc.h"
++#include "hw/char/stm32l4x5_usart.h"
++#include "hw/gpio/stm32l4x5_gpio.h"
++#include "hw/core/qdev-clock.h"
++#include "hw/misc/unimp.h"
++#include "hw/misc/stm32l4_i2c.h"
++#include "hw/ssi/stm32l4_spi.h"
++
++#define TYPE_STM32L4_FLASH "stm32l4-flash"
++#define TYPE_STM32L4_PWR "stm32l4-pwr"
++
++#define FLASH_BASE_ADDRESS 0x08000000
++#define SRAM1_BASE_ADDRESS 0x20000000
++#define SRAM1_SIZE (48 * KiB)
++#define SRAM2_BASE_ADDRESS 0x10000000
++#define SRAM2_SIZE (16 * KiB)
++
++#define EXTI_ADDR 0x40010400
++#define SYSCFG_ADDR 0x40010000
++
++#define NUM_EXTI_IRQ 40
++/* Match exti line connections with their CPU IRQ number */
++/* See Vector Table (Reference Manual p.396) */
++/*
++ * Some IRQs are connected to the same CPU IRQ (denoted by -1)
++ * and require an intermediary OR gate to function correctly.
++ */
++static const int exti_irq[NUM_EXTI_IRQ] = {
++    6,                      /* GPIO[0]                 */
++    7,                      /* GPIO[1]                 */
++    8,                      /* GPIO[2]                 */
++    9,                      /* GPIO[3]                 */
++    10,                     /* GPIO[4]                 */
++    -1, -1, -1, -1, -1,     /* GPIO[5..9] OR gate 23   */
++    -1, -1, -1, -1, -1, -1, /* GPIO[10..15] OR gate 40 */
++    -1,                     /* PVD OR gate 1           */
++    67,                     /* OTG_FS_WKUP, Direct     */
++    41,                     /* RTC_ALARM               */
++    2,                      /* RTC_TAMP_STAMP2/CSS_LSE */
++    3,                      /* RTC wakeup timer        */
++    -1, -1,                 /* COMP[1..2] OR gate 63   */
++    31,                     /* I2C1 wakeup, Direct     */
++    33,                     /* I2C2 wakeup, Direct     */
++    72,                     /* I2C3 wakeup, Direct     */
++    37,                     /* USART1 wakeup, Direct   */
++    38,                     /* USART2 wakeup, Direct   */
++    39,                     /* USART3 wakeup, Direct   */
++    52,                     /* UART4 wakeup, Direct    */
++    53,                     /* UART4 wakeup, Direct    */
++    70,                     /* LPUART1 wakeup, Direct  */
++    65,                     /* LPTIM1, Direct          */
++    66,                     /* LPTIM2, Direct          */
++    76,                     /* SWPMI1 wakeup, Direct   */
++    -1, -1, -1, -1,         /* PVM[1..4] OR gate 1     */
++    78                      /* LCD wakeup, Direct      */
++};
++#define RCC_BASE_ADDRESS 0x40021000
++#define RCC_IRQ 5
++
++#define EXTI_USART1_IRQ 26
++#define EXTI_UART4_IRQ 29
++#define EXTI_LPUART1_IRQ 31
++
++static const int exti_or_gates_out[NUM_EXTI_OR_GATES] = {
++    23, 40, 63, 1,
++};
++
++static const int exti_or_gates_num_lines_in[NUM_EXTI_OR_GATES] = {
++    5, 6, 2, 5,
++};
++
++/* 3 OR gates with consecutive inputs */
++#define NUM_EXTI_SIMPLE_OR_GATES 3
++static const int exti_or_gates_first_line_in[NUM_EXTI_SIMPLE_OR_GATES] = {
++    5, 10, 21,
++};
++
++/* 1 OR gate with non-consecutive inputs */
++#define EXTI_OR_GATE1_NUM_LINES_IN 5
++static const int exti_or_gate1_lines_in[EXTI_OR_GATE1_NUM_LINES_IN] = {
++    16, 35, 36, 37, 38,
++};
++
++static const struct {
++    uint32_t addr;
++    uint32_t moder_reset;
++    uint32_t ospeedr_reset;
++    uint32_t pupdr_reset;
++} stm32l4x2_gpio_cfg[STM32L4X2_NUM_GPIOS] = {
++    { 0x48000000, 0xABFFFFFF, 0x0C000000, 0x64000000 },
++    { 0x48000400, 0xFFFFFEBF, 0x00000000, 0x00000100 },
++    { 0x48000800, 0xFFFFFFFF, 0x00000000, 0x00000000 },
++    { 0x48001C00, 0x0000000F, 0x00000000, 0x00000000 },
++};
++
++static const unsigned stm32l4x2_gpio_syscfg_group[STM32L4X2_NUM_GPIOS] = {
++    0, 1, 2, 7,
++};
++
++static const char stm32l4x2_gpio_letter[STM32L4X2_NUM_GPIOS] = {
++    'a', 'b', 'c', 'h',
++};
++
++static const hwaddr usart_addr[STM32L4X2_NUM_USARTS] = {
++    0x40013800, /* USART1 */
++    0x40004400, /* USART2 */
++};
++
++#define LPUART_BASE_ADDRESS 0x40008000
++
++static void stm32l4x2_soc_initfn(Object *obj)
++{
++    Stm32l4x2SocState *s = STM32L4X2_SOC(obj);
++
++    object_initialize_child(obj, "exti", &s->exti, TYPE_STM32L4X5_EXTI);
++    for (unsigned i = 0; i < NUM_EXTI_OR_GATES; i++) {
++        object_initialize_child(obj, "exti_or_gates[*]", &s->exti_or_gates[i],
++                                TYPE_OR_IRQ);
++    }
++    object_initialize_child(obj, "syscfg", &s->syscfg, TYPE_STM32L4X5_SYSCFG);
++    object_initialize_child(obj, "rcc", &s->rcc, TYPE_STM32L4X5_RCC);
++
++    for (unsigned i = 0; i < STM32L4X2_NUM_GPIOS; i++) {
++        g_autofree char *name = g_strdup_printf("gpio%c", stm32l4x2_gpio_letter[i]);
++        object_initialize_child(obj, name, &s->gpio[i], TYPE_STM32L4X5_GPIO);
++    }
++
++    for (int i = 0; i < STM32L4X2_NUM_USARTS; i++) {
++        object_initialize_child(obj, "usart[*]", &s->usart[i],
++                                TYPE_STM32L4X5_USART);
++    }
++
++    object_initialize_child(obj, "lpuart1", &s->lpuart,
++                            TYPE_STM32L4X5_LPUART);
++}
++
++static void stm32l4x2_soc_realize(DeviceState *dev_soc, Error **errp)
++{
++    ERRP_GUARD();
++    Stm32l4x2SocState *s = STM32L4X2_SOC(dev_soc);
++    const Stm32l4x2SocClass *sc = STM32L4X2_SOC_GET_CLASS(dev_soc);
++    MemoryRegion *system_memory = get_system_memory();
++    DeviceState *armv7m, *dev;
++    SysBusDevice *busdev;
++    uint32_t pin_index;
++
++    if (!memory_region_init_rom(&s->flash, OBJECT(dev_soc), "flash",
++                                sc->flash_size, errp)) {
++        return;
++    }
++    memory_region_init_alias(&s->flash_alias, OBJECT(dev_soc),
++                             "flash_boot_alias", &s->flash, 0,
++                             sc->flash_size);
++
++    memory_region_add_subregion(system_memory, FLASH_BASE_ADDRESS, &s->flash);
++    memory_region_add_subregion(system_memory, 0, &s->flash_alias);
++
++    if (!memory_region_init_ram(&s->sram1, OBJECT(dev_soc), "SRAM1", SRAM1_SIZE,
++                                errp)) {
++        return;
++    }
++    memory_region_add_subregion(system_memory, SRAM1_BASE_ADDRESS, &s->sram1);
++
++    if (!memory_region_init_ram(&s->sram2, OBJECT(dev_soc), "SRAM2", SRAM2_SIZE,
++                                errp)) {
++        return;
++    }
++    memory_region_add_subregion(system_memory, SRAM2_BASE_ADDRESS, &s->sram2);
++
++    object_initialize_child(OBJECT(dev_soc), "armv7m", &s->armv7m, TYPE_ARMV7M);
++    armv7m = DEVICE(&s->armv7m);
++    qdev_prop_set_uint32(armv7m, "num-irq", 83);
++    qdev_prop_set_uint32(armv7m, "num-prio-bits", 4);
++    qdev_prop_set_string(armv7m, "cpu-type", ARM_CPU_TYPE_NAME("cortex-m4"));
++    qdev_prop_set_bit(armv7m, "enable-bitband", true);
++    qdev_connect_clock_in(armv7m, "cpuclk",
++        qdev_get_clock_out(DEVICE(&(s->rcc)), "cortex-fclk-out"));
++    qdev_connect_clock_in(armv7m, "refclk",
++        qdev_get_clock_out(DEVICE(&(s->rcc)), "cortex-refclk-out"));
++    object_property_set_link(OBJECT(&s->armv7m), "memory",
++                             OBJECT(system_memory), &error_abort);
++    if (!sysbus_realize(SYS_BUS_DEVICE(&s->armv7m), errp)) {
++        return;
++    }
++
++    /* GPIOs */
++    for (unsigned i = 0; i < STM32L4X2_NUM_GPIOS; i++) {
++        g_autofree char *name = g_strdup_printf("%c", stm32l4x2_gpio_letter[i]);
++        dev = DEVICE(&s->gpio[i]);
++        qdev_prop_set_string(dev, "name", name);
++        qdev_prop_set_uint32(dev, "mode-reset",
++                             stm32l4x2_gpio_cfg[i].moder_reset);
++        qdev_prop_set_uint32(dev, "ospeed-reset",
++                             stm32l4x2_gpio_cfg[i].ospeedr_reset);
++        qdev_prop_set_uint32(dev, "pupd-reset",
++                            stm32l4x2_gpio_cfg[i].pupdr_reset);
++        qdev_prop_set_uint32(dev, "pp-trace-pad-base",
++                             stm32l4x2_gpio_syscfg_group[i] * GPIO_NUM_PINS);
++
++        busdev = SYS_BUS_DEVICE(&s->gpio[i]);
++        g_free(name);
++        name = g_strdup_printf("gpio%c-out", stm32l4x2_gpio_letter[i]);
++        qdev_connect_clock_in(DEVICE(&s->gpio[i]), "clk",
++            qdev_get_clock_out(DEVICE(&(s->rcc)), name));
++        if (!sysbus_realize(busdev, errp)) {
++            return;
++        }
++        sysbus_mmio_map(busdev, 0, stm32l4x2_gpio_cfg[i].addr);
++    }
++
++    /* System configuration controller */
++    busdev = SYS_BUS_DEVICE(&s->syscfg);
++    qdev_connect_clock_in(DEVICE(&s->syscfg), "clk",
++        qdev_get_clock_out(DEVICE(&(s->rcc)), "syscfg-out"));
++    if (!sysbus_realize(busdev, errp)) {
++        return;
++    }
++    sysbus_mmio_map(busdev, 0, SYSCFG_ADDR);
++
++    for (unsigned i = 0; i < STM32L4X2_NUM_GPIOS; i++) {
++        unsigned g = stm32l4x2_gpio_syscfg_group[i];
++        for (unsigned j = 0; j < GPIO_NUM_PINS; j++) {
++            pin_index = GPIO_NUM_PINS * g + j;
++            qdev_connect_gpio_out(DEVICE(&s->gpio[i]), j,
++                                  qdev_get_gpio_in(DEVICE(&s->syscfg),
++                                  pin_index));
++        }
++    }
++
++    qdev_pass_gpios(DEVICE(&s->syscfg), dev_soc, NULL);
++
++    /* EXTI device */
++    busdev = SYS_BUS_DEVICE(&s->exti);
++    if (!sysbus_realize(busdev, errp)) {
++        return;
++    }
++    sysbus_mmio_map(busdev, 0, EXTI_ADDR);
++
++    /* IRQs with fan-in that require an OR gate */
++    for (unsigned i = 0; i < NUM_EXTI_OR_GATES; i++) {
++        if (!object_property_set_int(OBJECT(&s->exti_or_gates[i]), "num-lines",
++                                     exti_or_gates_num_lines_in[i], errp)) {
++            return;
++        }
++        if (!qdev_realize(DEVICE(&s->exti_or_gates[i]), NULL, errp)) {
++            return;
++        }
++
++        qdev_connect_gpio_out(DEVICE(&s->exti_or_gates[i]), 0,
++            qdev_get_gpio_in(armv7m, exti_or_gates_out[i]));
++
++        if (i < NUM_EXTI_SIMPLE_OR_GATES) {
++            /* consecutive inputs for OR gates 23, 40, 63 */
++            for (unsigned j = 0; j < exti_or_gates_num_lines_in[i]; j++) {
++                sysbus_connect_irq(SYS_BUS_DEVICE(&s->exti),
++                    exti_or_gates_first_line_in[i] + j,
++                    qdev_get_gpio_in(DEVICE(&s->exti_or_gates[i]), j));
++            }
++        } else {
++            /* non-consecutive inputs for OR gate 1 */
++            for (unsigned j = 0; j < EXTI_OR_GATE1_NUM_LINES_IN; j++) {
++                sysbus_connect_irq(SYS_BUS_DEVICE(&s->exti),
++                    exti_or_gate1_lines_in[j],
++                    qdev_get_gpio_in(DEVICE(&s->exti_or_gates[i]), j));
++            }
++        }
++    }
++
++    /* IRQs that don't require fan-in */
++    for (unsigned i = 0; i < NUM_EXTI_IRQ; i++) {
++        if (exti_irq[i] != -1) {
++            sysbus_connect_irq(busdev, i,
++                               qdev_get_gpio_in(armv7m, exti_irq[i]));
++        }
++    }
++
++    /* Connect SYSCFG to EXTI */
++    for (unsigned i = 0; i < GPIO_NUM_PINS; i++) {
++        qdev_connect_gpio_out(DEVICE(&s->syscfg), i,
++                              qdev_get_gpio_in(DEVICE(&s->exti), i));
++    }
++
++    /* RCC device */
++    busdev = SYS_BUS_DEVICE(&s->rcc);
++    if (!sysbus_realize(busdev, errp)) {
++        return;
++    }
++    sysbus_mmio_map(busdev, 0, RCC_BASE_ADDRESS);
++    sysbus_connect_irq(busdev, 0, qdev_get_gpio_in(armv7m, RCC_IRQ));
++
++    /* USART devices */
++    for (int i = 0; i < STM32L4X2_NUM_USARTS; i++) {
++        g_autofree char *name = g_strdup_printf("usart%d-out", i + 1);
++        dev = DEVICE(&(s->usart[i]));
++        qdev_prop_set_chr(dev, "chardev", serial_hd(i == 1 ? 0 : 1));
++        qdev_connect_clock_in(dev, "clk",
++            qdev_get_clock_out(DEVICE(&(s->rcc)), name));
++        busdev = SYS_BUS_DEVICE(dev);
++        if (!sysbus_realize(busdev, errp)) {
++            return;
++        }
++        sysbus_mmio_map(busdev, 0, usart_addr[i]);
++        sysbus_connect_irq(busdev, 0, qdev_get_gpio_in(DEVICE(&s->exti),
++                                                       EXTI_USART1_IRQ + i));
++    }
++
++    /* LPUART device*/
++    dev = DEVICE(&(s->lpuart));
++    qdev_prop_set_chr(dev, "chardev", serial_hd(2));
++    qdev_connect_clock_in(dev, "clk",
++        qdev_get_clock_out(DEVICE(&(s->rcc)), "lpuart1-out"));
++    busdev = SYS_BUS_DEVICE(dev);
++    if (!sysbus_realize(busdev, errp)) {
++        return;
++    }
++    sysbus_mmio_map(busdev, 0, LPUART_BASE_ADDRESS);
++    sysbus_connect_irq(busdev, 0, qdev_get_gpio_in(DEVICE(&s->exti),
++                                                   EXTI_LPUART1_IRQ));
++
++
++    /* PWR, flash interface, I2C and SPI (minimal models) */
++    dev = qdev_new(TYPE_STM32L4_PWR);
++    busdev = SYS_BUS_DEVICE(dev);
++    sysbus_realize(busdev, errp);
++    if (*errp) {
++        return;
++    }
++    sysbus_mmio_map(busdev, 0, 0x40007000);
++
++    dev = qdev_new(TYPE_STM32L4_FLASH);
++    busdev = SYS_BUS_DEVICE(dev);
++    sysbus_realize(busdev, errp);
++    if (*errp) {
++        return;
++    }
++    sysbus_mmio_map(busdev, 0, 0x40022000);
++
++    dev = qdev_new(TYPE_STM32L4_I2C);
++    busdev = SYS_BUS_DEVICE(dev);
++    sysbus_realize(busdev, errp);
++    if (*errp) {
++        return;
++    }
++    sysbus_mmio_map(busdev, 0, 0x40005400);
++    sysbus_connect_irq(busdev, 0, qdev_get_gpio_in(armv7m, 31));
++    sysbus_connect_irq(busdev, 1, qdev_get_gpio_in(armv7m, 32));
++
++    dev = qdev_new(TYPE_STM32L4_I2C);
++    busdev = SYS_BUS_DEVICE(dev);
++    sysbus_realize(busdev, errp);
++    if (*errp) {
++        return;
++    }
++    sysbus_mmio_map(busdev, 0, 0x40005C00);
++    sysbus_connect_irq(busdev, 0, qdev_get_gpio_in(armv7m, 72));
++    sysbus_connect_irq(busdev, 1, qdev_get_gpio_in(armv7m, 73));
++
++    dev = qdev_new(TYPE_STM32L4_SPI);
++    busdev = SYS_BUS_DEVICE(dev);
++    sysbus_realize(busdev, errp);
++    if (*errp) {
++        return;
++    }
++    sysbus_mmio_map(busdev, 0, 0x40013000);
++    sysbus_connect_irq(busdev, 0, qdev_get_gpio_in(armv7m, 35));
++
++    dev = qdev_new(TYPE_STM32L4_SPI);
++    busdev = SYS_BUS_DEVICE(dev);
++    sysbus_realize(busdev, errp);
++    if (*errp) {
++        return;
++    }
++    sysbus_mmio_map(busdev, 0, 0x40003C00);
++    sysbus_connect_irq(busdev, 0, qdev_get_gpio_in(armv7m, 51));
++
++    /* APB1 BUS */
++    create_unimplemented_device("TIM2",      0x40000000, 0x400);
++    create_unimplemented_device("TIM3",      0x40000400, 0x400);
++    create_unimplemented_device("TIM4",      0x40000800, 0x400);
++    create_unimplemented_device("TIM5",      0x40000C00, 0x400);
++    create_unimplemented_device("TIM6",      0x40001000, 0x400);
++    create_unimplemented_device("TIM7",      0x40001400, 0x400);
++    /* RESERVED:    0x40001800, 0x1000 */
++    create_unimplemented_device("RTC",       0x40002800, 0x400);
++    create_unimplemented_device("WWDG",      0x40002C00, 0x400);
++    create_unimplemented_device("IWDG",      0x40003000, 0x400);
++    /* RESERVED:    0x40001800, 0x400 */
++    create_unimplemented_device("SPI2",      0x40003800, 0x400);
++    /* SPI3 */
++    /* RESERVED:    0x40004000, 0x400 */
++    /* I2C1 */
++    create_unimplemented_device("I2C2",      0x40005800, 0x400);
++    /* I2C3 */
++    /* RESERVED:    0x40006000, 0x400 */
++    create_unimplemented_device("CAN1",      0x40006400, 0x400);
++    /* RESERVED:    0x40006800, 0x400 */
++    /* PWR */
++    create_unimplemented_device("DAC1",      0x40007400, 0x400);
++    create_unimplemented_device("OPAMP",     0x40007800, 0x400);
++    create_unimplemented_device("LPTIM1",    0x40007C00, 0x400);
++    /* RESERVED:    0x40008400, 0x400 */
++    create_unimplemented_device("SWPMI1",    0x40008800, 0x400);
++    /* RESERVED:    0x40008C00, 0x800 */
++    create_unimplemented_device("LPTIM2",    0x40009400, 0x400);
++    /* RESERVED:    0x40009800, 0x6800 */
++
++    /* APB2 BUS */
++    create_unimplemented_device("VREFBUF",   0x40010030, 0x1D0);
++    create_unimplemented_device("COMP",      0x40010200, 0x200);
++    /* RESERVED:    0x40010800, 0x1400 */
++    create_unimplemented_device("FIREWALL",  0x40011C00, 0x400);
++    /* RESERVED:    0x40012000, 0x800 */
++    create_unimplemented_device("SDMMC1",    0x40012800, 0x400);
++    create_unimplemented_device("TIM1",      0x40012C00, 0x400);
++    /* SPI1 */
++    create_unimplemented_device("TIM8",      0x40013400, 0x400);
++    /* RESERVED:    0x40013C00, 0x400 */
++    create_unimplemented_device("TIM15",     0x40014000, 0x400);
++    create_unimplemented_device("TIM16",     0x40014400, 0x400);
++    create_unimplemented_device("TIM17",     0x40014800, 0x400);
++    /* RESERVED:    0x40014C00, 0x800 */
++    create_unimplemented_device("SAI1",      0x40015400, 0x400);
++    create_unimplemented_device("SAI2",      0x40015800, 0x400);
++    /* RESERVED:    0x40015C00, 0x400 */
++    create_unimplemented_device("DFSDM1",    0x40016000, 0x400);
++    /* RESERVED:    0x40016400, 0x9C00 */
++
++    /* AHB1 BUS */
++    create_unimplemented_device("DMA1",      0x40020000, 0x400);
++    create_unimplemented_device("DMA2",      0x40020400, 0x400);
++    /* RESERVED:    0x40020800, 0x800 */
++    /* RESERVED:    0x40021400, 0xC00 */
++    /* FLASH */
++    /* RESERVED:    0x40022400, 0xC00 */
++    create_unimplemented_device("CRC",       0x40023000, 0x400);
++    /* RESERVED:    0x40023400, 0x400 */
++    create_unimplemented_device("TSC",       0x40024000, 0x400);
++
++    /* RESERVED:    0x40024400, 0x7FDBC00 */
++
++    /* AHB2 BUS */
++    /* RESERVED:    0x48002000, 0x7FDBC00 */
++    create_unimplemented_device("OTG_FS",    0x50000000, 0x40000);
++    create_unimplemented_device("ADC",       0x50040000, 0x400);
++    /* RESERVED:    0x50040400, 0x20400 */
++    create_unimplemented_device("RNG",       0x50060800, 0x400);
++
++    /* AHB3 BUS */
++    create_unimplemented_device("FMC",       0xA0000000, 0x1000);
++    create_unimplemented_device("QUADSPI",   0xA0001000, 0x400);
++}
++
++static void stm32l4x2_soc_class_init(ObjectClass *klass, const void *data)
++{
++
++    DeviceClass *dc = DEVICE_CLASS(klass);
++
++    dc->realize = stm32l4x2_soc_realize;
++    /* Reason: Mapped at fixed location on the system bus */
++    dc->user_creatable = false;
++    /* No vmstate or reset required: device has no internal state */
++}
++
++static void stm32l4x2kc_soc_class_init(ObjectClass *oc, const void *data)
++{
++    Stm32l4x2SocClass *ssc = STM32L4X2_SOC_CLASS(oc);
++
++    ssc->flash_size = 256 * KiB;
++}
++
++static const TypeInfo stm32l4x2_soc_types[] = {
++    {
++        .name           = TYPE_STM32L4X2KC_SOC,
++        .parent         = TYPE_STM32L4X2_SOC,
++        .class_init     = stm32l4x2kc_soc_class_init,
++    }, {
++        .name           = TYPE_STM32L4X2_SOC,
++        .parent         = TYPE_SYS_BUS_DEVICE,
++        .instance_size  = sizeof(Stm32l4x2SocState),
++        .instance_init  = stm32l4x2_soc_initfn,
++        .class_size     = sizeof(Stm32l4x2SocClass),
++        .class_init     = stm32l4x2_soc_class_init,
++        .abstract       = true,
++    }
++};
++
++DEFINE_TYPES(stm32l4x2_soc_types)
+diff --git a/hw/char/stm32l4x5_usart.c b/hw/char/stm32l4x5_usart.c
+index dd1b099..be32749 100644
+--- a/hw/char/stm32l4x5_usart.c
++++ b/hw/char/stm32l4x5_usart.c
+@@ -30,6 +30,7 @@
+ #include "hw/core/qdev-properties-system.h"
+ #include "hw/core/registerfields.h"
+ #include "trace.h"
++#include "hw/misc/pp_trace.h"
+ 
+ 
+ REG32(CR1, 0x00)
+@@ -230,6 +231,7 @@ static void stm32l4x5_usart_base_receive(void *opaque, const uint8_t *buf,
+         s->rdr = *buf;
+         s->isr |= R_ISR_RXNE_MASK;
+         trace_stm32l4x5_usart_rx(s->rdr);
++        pp_trace_event(PP_TRACE_UART_RX, s->trace_src, s->rdr, 0);
+     }
+ 
+     stm32l4x5_update_irq(s);
+@@ -273,6 +275,7 @@ static gboolean usart_transmit(void *do_not_use, GIOCondition cond,
+ buffer_drained:
+     /* Character successfully sent */
+     trace_stm32l4x5_usart_tx(ch);
++    pp_trace_event(PP_TRACE_UART_TX, s->trace_src, ch, 0);
+     s->isr |= R_ISR_TC_MASK | R_ISR_TXE_MASK;
+     stm32l4x5_update_irq(s);
+     return G_SOURCE_REMOVE;
+@@ -586,6 +589,8 @@ static void stm32l4x5_usart_base_realize(DeviceState *dev, Error **errp)
+         return;
+     }
+ 
++    s->trace_src = pp_trace_source(object_get_canonical_path_component(OBJECT(dev)));
++
+     qemu_chr_fe_set_handlers(&s->chr, stm32l4x5_usart_base_can_receive,
+                              stm32l4x5_usart_base_receive, NULL, NULL,
+                              s, NULL, true);
+diff --git a/hw/gpio/stm32l4x5_gpio.c b/hw/gpio/stm32l4x5_gpio.c
+index 92fa397..45601b9 100644
+--- a/hw/gpio/stm32l4x5_gpio.c
++++ b/hw/gpio/stm32l4x5_gpio.c
+@@ -19,6 +19,7 @@
+ #include "qemu/osdep.h"
+ #include "qemu/log.h"
+ #include "hw/gpio/stm32l4x5_gpio.h"
++#include "hw/misc/pp_trace.h"
+ #include "hw/core/irq.h"
+ #include "hw/core/clock.h"
+ #include "hw/core/qdev-clock.h"
+@@ -191,6 +192,9 @@ static void update_gpio_idr(Stm32l4x5GpioState *s)
+             } else if (new_pin_state < old_pin_state) {
+                 qemu_irq_lower(s->pin[i]);
+             }
++            if (s->pp_trace_pad_base != UINT32_MAX) {
++                pp_trace_pad(s->pp_trace_pad_base + i, new_pin_state);
++            }
+         }
+     }
+ }
+@@ -408,6 +412,7 @@ static void stm32l4x5_gpio_init(Object *obj)
+     qdev_init_gpio_in(DEVICE(obj), stm32l4x5_gpio_set, GPIO_NUM_PINS);
+ 
+     s->clk = qdev_init_clock_in(DEVICE(s), "clk", NULL, s, 0);
++    s->pp_trace_pad_base = UINT32_MAX;
+ 
+     object_property_add(obj, "disconnected-pins", "uint16",
+                         disconnected_pins_get, disconnected_pins_set,
+@@ -452,6 +457,8 @@ static const Property stm32l4x5_gpio_properties[] = {
+     DEFINE_PROP_UINT32("mode-reset", Stm32l4x5GpioState, moder_reset, 0),
+     DEFINE_PROP_UINT32("ospeed-reset", Stm32l4x5GpioState, ospeedr_reset, 0),
+     DEFINE_PROP_UINT32("pupd-reset", Stm32l4x5GpioState, pupdr_reset, 0),
++    DEFINE_PROP_UINT32("pp-trace-pad-base", Stm32l4x5GpioState,
++                      pp_trace_pad_base, UINT32_MAX),
+ };
+ 
+ static void stm32l4x5_gpio_class_init(ObjectClass *klass, const void *data)
+diff --git a/hw/misc/Kconfig b/hw/misc/Kconfig
+index 6a4736a..39d50b1 100644
+--- a/hw/misc/Kconfig
++++ b/hw/misc/Kconfig
+@@ -122,6 +122,15 @@ config STM32L4X5_SYSCFG
+ config STM32L4X5_RCC
+     bool
+ 
++config STM32L4_FLASH
++    bool
++
++config STM32L4_PWR
++    bool
++
++config STM32L4_I2C
++    bool
++
+ config MIPS_ITU
+     bool
+     depends on TCG
+diff --git a/hw/misc/meson.build b/hw/misc/meson.build
+index 76970ba..6aa38e2 100644
+--- a/hw/misc/meson.build
++++ b/hw/misc/meson.build
+@@ -155,6 +155,9 @@ system_ss.add(when: 'CONFIG_STM32F4XX_EXTI', if_true: files('stm32f4xx_exti.c'))
+ system_ss.add(when: 'CONFIG_STM32L4X5_EXTI', if_true: files('stm32l4x5_exti.c'))
+ system_ss.add(when: 'CONFIG_STM32L4X5_SYSCFG', if_true: files('stm32l4x5_syscfg.c'))
+ system_ss.add(when: 'CONFIG_STM32L4X5_RCC', if_true: files('stm32l4x5_rcc.c'))
++system_ss.add(when: 'CONFIG_STM32L4_FLASH', if_true: files('stm32l4_flash.c'))
++system_ss.add(when: 'CONFIG_STM32L4_PWR', if_true: files('stm32l4_pwr.c'))
++system_ss.add(when: 'CONFIG_STM32L4_I2C', if_true: files('stm32l4_i2c.c'))
+ system_ss.add(when: 'CONFIG_MPS2_FPGAIO', if_true: files('mps2-fpgaio.c'))
+ system_ss.add(when: 'CONFIG_MPS2_SCC', if_true: files('mps2-scc.c'))
+ 
+diff --git a/hw/misc/stm32l4_flash.c b/hw/misc/stm32l4_flash.c
+new file mode 100644
+index 0000000..c393131
+--- /dev/null
++++ b/hw/misc/stm32l4_flash.c
+@@ -0,0 +1,112 @@
++/*
++ * STM32L4 flash interface (minimal, for HAL boot)
++ *
++ * Peripheral Pretender: a personal project. AI-assisted code;
++ * not for submission to upstream QEMU.
++ *
++ * SPDX-License-Identifier: GPL-2.0-or-later
++ */
++
++#include "qemu/osdep.h"
++#include "qemu/log.h"
++#include "qemu/module.h"
++#include "hw/core/sysbus.h"
++#include "migration/vmstate.h"
++#include "qom/object.h"
++
++#define TYPE_STM32L4_FLASH "stm32l4-flash"
++
++OBJECT_DECLARE_SIMPLE_TYPE(Stm32l4FlashState, STM32L4_FLASH)
++
++struct Stm32l4FlashState {
++    SysBusDevice parent_obj;
++    MemoryRegion mmio;
++    uint32_t acr;
++    uint32_t sr;
++    uint32_t cr;
++};
++
++static uint64_t stm32l4_flash_read(void *opaque, hwaddr addr, unsigned size)
++{
++    Stm32l4FlashState *s = opaque;
++
++    switch (addr) {
++    case 0x00:
++        return s->acr;
++    case 0x10:
++        return s->sr | 0x1; /* BSY clear, ready implied */
++    case 0x14:
++        return s->cr;
++    default:
++        return 0;
++    }
++}
++
++static void stm32l4_flash_write(void *opaque, hwaddr addr,
++                                uint64_t val, unsigned size)
++{
++    Stm32l4FlashState *s = opaque;
++
++    switch (addr) {
++    case 0x00:
++        s->acr = val;
++        break;
++    case 0x14:
++        s->cr = val;
++        s->sr &= ~0x1;
++        break;
++    default:
++        qemu_log_mask(LOG_UNIMP, "%s: unimplemented offset 0x%x\n",
++                      __func__, (unsigned)addr);
++        break;
++    }
++}
++
++static const MemoryRegionOps stm32l4_flash_ops = {
++    .read = stm32l4_flash_read,
++    .write = stm32l4_flash_write,
++    .endianness = DEVICE_LITTLE_ENDIAN,
++    .valid.min_access_size = 4,
++    .valid.max_access_size = 4,
++};
++
++static void stm32l4_flash_reset_hold(Object *obj, ResetType type)
++{
++    Stm32l4FlashState *s = STM32L4_FLASH(obj);
++
++    s->acr = 0;
++    s->sr = 0;
++    s->cr = 0;
++}
++
++static void stm32l4_flash_realize(DeviceState *dev, Error **errp)
++{
++    Stm32l4FlashState *s = STM32L4_FLASH(dev);
++
++    memory_region_init_io(&s->mmio, OBJECT(s), &stm32l4_flash_ops, s,
++                          TYPE_STM32L4_FLASH, 0x400);
++    sysbus_init_mmio(SYS_BUS_DEVICE(dev), &s->mmio);
++}
++
++static void stm32l4_flash_class_init(ObjectClass *klass, const void *data)
++{
++    DeviceClass *dc = DEVICE_CLASS(klass);
++    ResettableClass *rc = RESETTABLE_CLASS(klass);
++
++    dc->realize = stm32l4_flash_realize;
++    rc->phases.hold = stm32l4_flash_reset_hold;
++}
++
++static const TypeInfo stm32l4_flash_info = {
++    .name = TYPE_STM32L4_FLASH,
++    .parent = TYPE_SYS_BUS_DEVICE,
++    .instance_size = sizeof(Stm32l4FlashState),
++    .class_init = stm32l4_flash_class_init,
++};
++
++static void stm32l4_flash_register_types(void)
++{
++    type_register_static(&stm32l4_flash_info);
++}
++
++type_init(stm32l4_flash_register_types)
+diff --git a/hw/misc/stm32l4_i2c.c b/hw/misc/stm32l4_i2c.c
+new file mode 100644
+index 0000000..04743b1
+--- /dev/null
++++ b/hw/misc/stm32l4_i2c.c
+@@ -0,0 +1,137 @@
++/*
++ * STM32L4 I2C (FM+) minimal model
++ *
++ * Peripheral Pretender: a personal project. AI-assisted code;
++ * not for submission to upstream QEMU.
++ *
++ * SPDX-License-Identifier: GPL-2.0-or-later
++ */
++
++#include "qemu/osdep.h"
++#include "qemu/log.h"
++#include "qemu/module.h"
++#include "hw/misc/stm32l4_i2c.h"
++#include "hw/misc/pp_trace.h"
++#include "hw/core/irq.h"
++#include "hw/i2c/i2c.h"
++#include "migration/vmstate.h"
++
++#define ISR_TXIS   (1 << 1)
++#define ISR_RXNE   (1 << 2)
++#define ISR_TC     (1 << 6)
++#define ISR_BUSY   (1 << 15)
++
++static void stm32l4_i2c_update_irq(Stm32l4I2cState *s)
++{
++    qemu_set_irq(s->irq_ev, (s->isr & (ISR_TXIS | ISR_RXNE | ISR_TC)) != 0);
++}
++
++static uint64_t stm32l4_i2c_read(void *opaque, hwaddr addr, unsigned size)
++{
++    Stm32l4I2cState *s = opaque;
++
++    switch (addr) {
++    case 0x00:
++        return s->cr1;
++    case 0x04:
++        return s->cr2;
++    case 0x10:
++        return s->timingr;
++    case 0x18:
++        return s->isr;
++    case 0x28:
++        return s->txdr;
++    default:
++        return 0;
++    }
++}
++
++static void stm32l4_i2c_write(void *opaque, hwaddr addr,
++                               uint64_t val, unsigned size)
++{
++    Stm32l4I2cState *s = opaque;
++
++    switch (addr) {
++    case 0x00:
++        s->cr1 = val;
++        if (val & 1) {
++            s->isr &= ~ISR_BUSY;
++            s->isr |= ISR_TXIS | ISR_TC;
++        }
++        break;
++    case 0x04:
++        s->cr2 = val;
++        break;
++    case 0x10:
++        s->timingr = val;
++        break;
++    case 0x1c:
++        s->isr &= ~val;
++        stm32l4_i2c_update_irq(s);
++        break;
++    case 0x28:
++        s->txdr = val;
++        s->isr |= ISR_TXIS;
++        pp_trace_event(PP_TRACE_I2C_BYTE, s->trace_src, val & 0xff, 0);
++        stm32l4_i2c_update_irq(s);
++        break;
++    default:
++        qemu_log_mask(LOG_UNIMP, "%s: offset 0x%x\n", __func__, (unsigned)addr);
++        break;
++    }
++}
++
++static const MemoryRegionOps stm32l4_i2c_ops = {
++    .read = stm32l4_i2c_read,
++    .write = stm32l4_i2c_write,
++    .endianness = DEVICE_LITTLE_ENDIAN,
++    .valid.min_access_size = 4,
++    .valid.max_access_size = 4,
++};
++
++static void stm32l4_i2c_reset_hold(Object *obj, ResetType type)
++{
++    Stm32l4I2cState *s = STM32L4_I2C(obj);
++
++    s->cr1 = 0;
++    s->cr2 = 0;
++    s->timingr = 0;
++    s->isr = 0;
++    s->txdr = 0;
++}
++
++static void stm32l4_i2c_realize(DeviceState *dev, Error **errp)
++{
++    Stm32l4I2cState *s = STM32L4_I2C(dev);
++    SysBusDevice *sbd = SYS_BUS_DEVICE(dev);
++
++    memory_region_init_io(&s->mmio, OBJECT(s), &stm32l4_i2c_ops, s,
++                          TYPE_STM32L4_I2C, 0x400);
++    sysbus_init_mmio(sbd, &s->mmio);
++    sysbus_init_irq(sbd, &s->irq_ev);
++    sysbus_init_irq(sbd, &s->irq_er);
++    s->trace_src = pp_trace_source(object_get_canonical_path_component(OBJECT(dev)));
++}
++
++static void stm32l4_i2c_class_init(ObjectClass *klass, const void *data)
++{
++    DeviceClass *dc = DEVICE_CLASS(klass);
++    ResettableClass *rc = RESETTABLE_CLASS(klass);
++
++    dc->realize = stm32l4_i2c_realize;
++    rc->phases.hold = stm32l4_i2c_reset_hold;
++}
++
++static const TypeInfo stm32l4_i2c_info = {
++    .name = TYPE_STM32L4_I2C,
++    .parent = TYPE_SYS_BUS_DEVICE,
++    .instance_size = sizeof(Stm32l4I2cState),
++    .class_init = stm32l4_i2c_class_init,
++};
++
++static void stm32l4_i2c_register_types(void)
++{
++    type_register_static(&stm32l4_i2c_info);
++}
++
++type_init(stm32l4_i2c_register_types)
+diff --git a/hw/misc/stm32l4_pwr.c b/hw/misc/stm32l4_pwr.c
+new file mode 100644
+index 0000000..2b5af3b
+--- /dev/null
++++ b/hw/misc/stm32l4_pwr.c
+@@ -0,0 +1,128 @@
++/*
++ * STM32L4 power control (minimal)
++ *
++ * Peripheral Pretender: a personal project. AI-assisted code;
++ * not for submission to upstream QEMU.
++ *
++ * SPDX-License-Identifier: GPL-2.0-or-later
++ */
++
++#include "qemu/osdep.h"
++#include "qemu/log.h"
++#include "qemu/module.h"
++#include "hw/core/sysbus.h"
++#include "migration/vmstate.h"
++#include "qom/object.h"
++
++#define TYPE_STM32L4_PWR "stm32l4-pwr"
++
++OBJECT_DECLARE_SIMPLE_TYPE(Stm32l4PwrState, STM32L4_PWR)
++
++struct Stm32l4PwrState {
++    SysBusDevice parent_obj;
++    MemoryRegion mmio;
++    uint32_t cr1;
++    uint32_t cr2;
++    uint32_t cr3;
++    uint32_t cr4;
++    uint32_t sr1;
++    uint32_t sr2;
++};
++
++static uint64_t stm32l4_pwr_read(void *opaque, hwaddr addr, unsigned size)
++{
++    Stm32l4PwrState *s = opaque;
++
++    switch (addr) {
++    case 0x00:
++        return s->cr1;
++    case 0x04:
++        return s->cr2;
++    case 0x08:
++        return s->cr3;
++    case 0x0c:
++        return s->cr4;
++    case 0x10:
++        return s->sr1 | 0x8; /* VOSF: scale ready */
++    case 0x14:
++        return s->sr2;
++    default:
++        return 0;
++    }
++}
++
++static void stm32l4_pwr_write(void *opaque, hwaddr addr,
++                              uint64_t val, unsigned size)
++{
++    Stm32l4PwrState *s = opaque;
++
++    switch (addr) {
++    case 0x00:
++        s->cr1 = val;
++        break;
++    case 0x04:
++        s->cr2 = val;
++        break;
++    case 0x08:
++        s->cr3 = val;
++        break;
++    case 0x0c:
++        s->cr4 = val;
++        break;
++    default:
++        qemu_log_mask(LOG_UNIMP, "%s: offset 0x%x\n", __func__, (unsigned)addr);
++        break;
++    }
++}
++
++static const MemoryRegionOps stm32l4_pwr_ops = {
++    .read = stm32l4_pwr_read,
++    .write = stm32l4_pwr_write,
++    .endianness = DEVICE_LITTLE_ENDIAN,
++    .valid.min_access_size = 4,
++    .valid.max_access_size = 4,
++};
++
++static void stm32l4_pwr_reset_hold(Object *obj, ResetType type)
++{
++    Stm32l4PwrState *s = STM32L4_PWR(obj);
++
++    s->cr1 = 0x00000300;
++    s->cr2 = 0;
++    s->cr3 = 0;
++    s->cr4 = 0;
++    s->sr1 = 0;
++    s->sr2 = 0;
++}
++
++static void stm32l4_pwr_realize(DeviceState *dev, Error **errp)
++{
++    Stm32l4PwrState *s = STM32L4_PWR(dev);
++
++    memory_region_init_io(&s->mmio, OBJECT(s), &stm32l4_pwr_ops, s,
++                          TYPE_STM32L4_PWR, 0x400);
++    sysbus_init_mmio(SYS_BUS_DEVICE(dev), &s->mmio);
++}
++
++static void stm32l4_pwr_class_init(ObjectClass *klass, const void *data)
++{
++    DeviceClass *dc = DEVICE_CLASS(klass);
++    ResettableClass *rc = RESETTABLE_CLASS(klass);
++
++    dc->realize = stm32l4_pwr_realize;
++    rc->phases.hold = stm32l4_pwr_reset_hold;
++}
++
++static const TypeInfo stm32l4_pwr_info = {
++    .name = TYPE_STM32L4_PWR,
++    .parent = TYPE_SYS_BUS_DEVICE,
++    .instance_size = sizeof(Stm32l4PwrState),
++    .class_init = stm32l4_pwr_class_init,
++};
++
++static void stm32l4_pwr_register_types(void)
++{
++    type_register_static(&stm32l4_pwr_info);
++}
++
++type_init(stm32l4_pwr_register_types)
+diff --git a/hw/ssi/Kconfig b/hw/ssi/Kconfig
+index de944a6..ed88ccc 100644
+--- a/hw/ssi/Kconfig
++++ b/hw/ssi/Kconfig
+@@ -27,6 +27,10 @@ config STM32F2XX_SPI
+     bool
+     select SSI
+ 
++config STM32L4_SPI
++    bool
++    select SSI
++
+ config BCM2835_SPI
+     bool
+     select SSI
+diff --git a/hw/ssi/meson.build b/hw/ssi/meson.build
+index edfcd39..281baf3 100644
+--- a/hw/ssi/meson.build
++++ b/hw/ssi/meson.build
+@@ -6,6 +6,7 @@ system_ss.add(when: 'CONFIG_PL022', if_true: files('pl022.c'))
+ system_ss.add(when: 'CONFIG_SIFIVE_SPI', if_true: files('sifive_spi.c'))
+ system_ss.add(when: 'CONFIG_SSI', if_true: files('ssi.c'))
+ system_ss.add(when: 'CONFIG_STM32F2XX_SPI', if_true: files('stm32f2xx_spi.c'))
++system_ss.add(when: 'CONFIG_STM32L4_SPI', if_true: files('stm32l4_spi.c'))
+ system_ss.add(when: 'CONFIG_XILINX_SPI', if_true: files('xilinx_spi.c'))
+ system_ss.add(when: 'CONFIG_XILINX_SPIPS', if_true: files('xilinx_spips.c'))
+ system_ss.add(when: 'CONFIG_XLNX_VERSAL', if_true: files('xlnx-versal-ospi.c'))
+diff --git a/hw/ssi/stm32l4_spi.c b/hw/ssi/stm32l4_spi.c
+new file mode 100644
+index 0000000..2e749f0
+--- /dev/null
++++ b/hw/ssi/stm32l4_spi.c
+@@ -0,0 +1,129 @@
++/*
++ * STM32L4 SPI minimal model
++ *
++ * Peripheral Pretender: a personal project. AI-assisted code;
++ * not for submission to upstream QEMU.
++ *
++ * SPDX-License-Identifier: GPL-2.0-or-later
++ */
++
++#include "qemu/osdep.h"
++#include "qemu/log.h"
++#include "qemu/module.h"
++#include "hw/ssi/stm32l4_spi.h"
++#include "hw/misc/pp_trace.h"
++#include "hw/core/irq.h"
++#include "migration/vmstate.h"
++
++#define SR_TXE  (1 << 1)
++#define SR_RXNE (1 << 0)
++
++static void stm32l4_spi_update_irq(Stm32l4SpiState *s)
++{
++    qemu_set_irq(s->irq, (s->sr & (SR_TXE | SR_RXNE)) != 0);
++}
++
++static uint64_t stm32l4_spi_read(void *opaque, hwaddr addr, unsigned size)
++{
++    Stm32l4SpiState *s = opaque;
++
++    switch (addr) {
++    case 0x00:
++        return s->cr1;
++    case 0x04:
++        return s->cr2;
++    case 0x08:
++        return s->sr | SR_TXE;
++    case 0x0c:
++        if (s->sr & SR_RXNE) {
++            s->sr &= ~SR_RXNE;
++            stm32l4_spi_update_irq(s);
++        }
++        return s->dr;
++    default:
++        return 0;
++    }
++}
++
++static void stm32l4_spi_write(void *opaque, hwaddr addr,
++                               uint64_t val, unsigned size)
++{
++    Stm32l4SpiState *s = opaque;
++
++    switch (addr) {
++    case 0x00:
++        s->cr1 = val;
++        if (val & 0x40) {
++            s->sr |= SR_TXE;
++        }
++        break;
++    case 0x04:
++        s->cr2 = val;
++        break;
++    case 0x0c:
++        s->dr = val & 0xff;
++        if (s->ssi) {
++            s->dr = ssi_transfer(s->ssi, s->dr);
++        }
++        s->sr |= SR_RXNE;
++        pp_trace_event(PP_TRACE_SPI, s->trace_src, val & 0xff, s->dr & 0xff);
++        stm32l4_spi_update_irq(s);
++        break;
++    default:
++        break;
++    }
++}
++
++static const MemoryRegionOps stm32l4_spi_ops = {
++    .read = stm32l4_spi_read,
++    .write = stm32l4_spi_write,
++    .endianness = DEVICE_LITTLE_ENDIAN,
++    .valid.min_access_size = 4,
++    .valid.max_access_size = 4,
++};
++
++static void stm32l4_spi_reset_hold(Object *obj, ResetType type)
++{
++    Stm32l4SpiState *s = STM32L4_SPI(obj);
++
++    s->cr1 = 0;
++    s->cr2 = 0;
++    s->sr = SR_TXE;
++    s->dr = 0;
++}
++
++static void stm32l4_spi_realize(DeviceState *dev, Error **errp)
++{
++    Stm32l4SpiState *s = STM32L4_SPI(dev);
++    SysBusDevice *sbd = SYS_BUS_DEVICE(dev);
++
++    memory_region_init_io(&s->mmio, OBJECT(s), &stm32l4_spi_ops, s,
++                          TYPE_STM32L4_SPI, 0x400);
++    sysbus_init_mmio(sbd, &s->mmio);
++    sysbus_init_irq(sbd, &s->irq);
++    s->ssi = ssi_create_bus(dev, "spi0");
++    s->trace_src = pp_trace_source(object_get_canonical_path_component(OBJECT(dev)));
++}
++
++static void stm32l4_spi_class_init(ObjectClass *klass, const void *data)
++{
++    DeviceClass *dc = DEVICE_CLASS(klass);
++    ResettableClass *rc = RESETTABLE_CLASS(klass);
++
++    dc->realize = stm32l4_spi_realize;
++    rc->phases.hold = stm32l4_spi_reset_hold;
++}
++
++static const TypeInfo stm32l4_spi_info = {
++    .name = TYPE_STM32L4_SPI,
++    .parent = TYPE_SYS_BUS_DEVICE,
++    .instance_size = sizeof(Stm32l4SpiState),
++    .class_init = stm32l4_spi_class_init,
++};
++
++static void stm32l4_spi_register_types(void)
++{
++    type_register_static(&stm32l4_spi_info);
++}
++
++type_init(stm32l4_spi_register_types)
+diff --git a/include/hw/arm/stm32l4x1_soc.h b/include/hw/arm/stm32l4x1_soc.h
+new file mode 100644
+index 0000000..037f2b6
+--- /dev/null
++++ b/include/hw/arm/stm32l4x1_soc.h
+@@ -0,0 +1,60 @@
++/*
++ * STM32L4x1 SoC family (STM32L432/L442)
++ *
++ * Peripheral Pretender: a personal project. AI-assisted code;
++ * not for submission to upstream QEMU.
++ *
++ * SPDX-License-Identifier: GPL-2.0-or-later
++ */
++
++#ifndef HW_ARM_STM32L4X1_SOC_H
++#define HW_ARM_STM32L4X1_SOC_H
++
++#include "system/memory.h"
++#include "hw/arm/armv7m.h"
++#include "hw/core/or-irq.h"
++#include "hw/misc/stm32l4x5_exti.h"
++#include "hw/misc/stm32l4x5_syscfg.h"
++#include "hw/misc/stm32l4x5_rcc.h"
++#include "hw/gpio/stm32l4x5_gpio.h"
++#include "hw/char/stm32l4x5_usart.h"
++#include "qom/object.h"
++
++#define TYPE_STM32L4X1_SOC "stm32l4x1-soc"
++#define TYPE_STM32L4X1RB_SOC "stm32l4x1rb-soc"
++OBJECT_DECLARE_TYPE(Stm32l4x1SocState, Stm32l4x1SocClass, STM32L4X1_SOC)
++
++#define STM32L4X1_NUM_GPIOS 6
++#define STM32L4X1_NUM_USARTS 3
++
++#define NUM_EXTI_OR_GATES 4
++
++struct Stm32l4x1SocState {
++    SysBusDevice parent_obj;
++
++    ARMv7MState armv7m;
++
++    Stm32l4x5ExtiState exti;
++    OrIRQState exti_or_gates[NUM_EXTI_OR_GATES];
++    Stm32l4x5SyscfgState syscfg;
++    Stm32l4x5RccState rcc;
++    Stm32l4x5GpioState gpio[STM32L4X1_NUM_GPIOS];
++    Stm32l4x5UsartBaseState usart[STM32L4X1_NUM_USARTS];
++    Stm32l4x5UsartBaseState lpuart;
++
++    MemoryRegion sram1;
++    MemoryRegion sram2;
++    MemoryRegion flash;
++    MemoryRegion flash_alias;
++};
++
++struct Stm32l4x1SocClass {
++    SysBusDeviceClass parent_class;
++
++    size_t flash_size;
++};
++
++void stm32l4x1_soc_trace(Stm32l4x1SocState *s, Object *machine,
++                         const char *chardev);
++
++#endif
+diff --git a/include/hw/arm/stm32l4x2_soc.h b/include/hw/arm/stm32l4x2_soc.h
+new file mode 100644
+index 0000000..8b4b948
+--- /dev/null
++++ b/include/hw/arm/stm32l4x2_soc.h
+@@ -0,0 +1,60 @@
++/*
++ * STM32L4x2 SoC family (STM32L432/L442)
++ *
++ * Peripheral Pretender: a personal project. AI-assisted code;
++ * not for submission to upstream QEMU.
++ *
++ * SPDX-License-Identifier: GPL-2.0-or-later
++ */
++
++#ifndef HW_ARM_STM32L4X2_SOC_H
++#define HW_ARM_STM32L4X2_SOC_H
++
++#include "system/memory.h"
++#include "hw/arm/armv7m.h"
++#include "hw/core/or-irq.h"
++#include "hw/misc/stm32l4x5_exti.h"
++#include "hw/misc/stm32l4x5_syscfg.h"
++#include "hw/misc/stm32l4x5_rcc.h"
++#include "hw/gpio/stm32l4x5_gpio.h"
++#include "hw/char/stm32l4x5_usart.h"
++#include "qom/object.h"
++
++#define TYPE_STM32L4X2_SOC "stm32l4x2-soc"
++#define TYPE_STM32L4X2KC_SOC "stm32l4x2kc-soc"
++OBJECT_DECLARE_TYPE(Stm32l4x2SocState, Stm32l4x2SocClass, STM32L4X2_SOC)
++
++#define STM32L4X2_NUM_GPIOS 4
++#define STM32L4X2_NUM_USARTS 2
++
++#define NUM_EXTI_OR_GATES 4
++
++struct Stm32l4x2SocState {
++    SysBusDevice parent_obj;
++
++    ARMv7MState armv7m;
++
++    Stm32l4x5ExtiState exti;
++    OrIRQState exti_or_gates[NUM_EXTI_OR_GATES];
++    Stm32l4x5SyscfgState syscfg;
++    Stm32l4x5RccState rcc;
++    Stm32l4x5GpioState gpio[STM32L4X2_NUM_GPIOS];
++    Stm32l4x5UsartBaseState usart[STM32L4X2_NUM_USARTS];
++    Stm32l4x5UsartBaseState lpuart;
++
++    MemoryRegion sram1;
++    MemoryRegion sram2;
++    MemoryRegion flash;
++    MemoryRegion flash_alias;
++};
++
++struct Stm32l4x2SocClass {
++    SysBusDeviceClass parent_class;
++
++    size_t flash_size;
++};
++
++void stm32l4x2_soc_trace(Stm32l4x2SocState *s, Object *machine,
++                         const char *chardev);
++
++#endif
+diff --git a/include/hw/char/stm32l4x5_usart.h b/include/hw/char/stm32l4x5_usart.h
+index 3bb59fd..389b24a 100644
+--- a/include/hw/char/stm32l4x5_usart.h
++++ b/include/hw/char/stm32l4x5_usart.h
+@@ -56,6 +56,7 @@ struct Stm32l4x5UsartBaseState {
+     CharFrontend chr;
+     qemu_irq irq;
+     guint watch_tag;
++    unsigned trace_src;
+ };
+ 
+ struct Stm32l4x5UsartBaseClass {
+diff --git a/include/hw/gpio/stm32l4x5_gpio.h b/include/hw/gpio/stm32l4x5_gpio.h
+index 6219754..f48a3e7 100644
+--- a/include/hw/gpio/stm32l4x5_gpio.h
++++ b/include/hw/gpio/stm32l4x5_gpio.h
+@@ -66,6 +66,7 @@ struct Stm32l4x5GpioState {
+     char *name;
+     Clock *clk;
+     qemu_irq pin[GPIO_NUM_PINS];
++    uint32_t pp_trace_pad_base;
+ };
+ 
+ #endif
+diff --git a/include/hw/misc/stm32l4_i2c.h b/include/hw/misc/stm32l4_i2c.h
+new file mode 100644
+index 0000000..3e1e740
+--- /dev/null
++++ b/include/hw/misc/stm32l4_i2c.h
+@@ -0,0 +1,33 @@
++/*
++ * STM32L4 I2C (FM+) minimal model
++ *
++ * Peripheral Pretender: a personal project. AI-assisted code;
++ * not for submission to upstream QEMU.
++ *
++ * SPDX-License-Identifier: GPL-2.0-or-later
++ */
++
++#ifndef HW_MISC_STM32L4_I2C_H
++#define HW_MISC_STM32L4_I2C_H
++
++#include "hw/core/sysbus.h"
++#include "qom/object.h"
++
++#define TYPE_STM32L4_I2C "stm32l4-i2c"
++
++OBJECT_DECLARE_SIMPLE_TYPE(Stm32l4I2cState, STM32L4_I2C)
++
++struct Stm32l4I2cState {
++    SysBusDevice parent_obj;
++    MemoryRegion mmio;
++    qemu_irq irq_ev;
++    qemu_irq irq_er;
++    uint32_t cr1;
++    uint32_t cr2;
++    uint32_t timingr;
++    uint32_t isr;
++    uint32_t txdr;
++    unsigned trace_src;
++};
++
++#endif
+diff --git a/include/hw/ssi/stm32l4_spi.h b/include/hw/ssi/stm32l4_spi.h
+new file mode 100644
+index 0000000..391fc82
+--- /dev/null
++++ b/include/hw/ssi/stm32l4_spi.h
+@@ -0,0 +1,33 @@
++/*
++ * STM32L4 SPI minimal model
++ *
++ * Peripheral Pretender: a personal project. AI-assisted code;
++ * not for submission to upstream QEMU.
++ *
++ * SPDX-License-Identifier: GPL-2.0-or-later
++ */
++
++#ifndef HW_SSI_STM32L4_SPI_H
++#define HW_SSI_STM32L4_SPI_H
++
++#include "hw/core/sysbus.h"
++#include "hw/ssi/ssi.h"
++#include "qom/object.h"
++
++#define TYPE_STM32L4_SPI "stm32l4-spi"
++
++OBJECT_DECLARE_SIMPLE_TYPE(Stm32l4SpiState, STM32L4_SPI)
++
++struct Stm32l4SpiState {
++    SysBusDevice parent_obj;
++    MemoryRegion mmio;
++    qemu_irq irq;
++    SSIBus *ssi;
++    uint32_t cr1;
++    uint32_t cr2;
++    uint32_t sr;
++    uint32_t dr;
++    unsigned trace_src;
++};
++
++#endif
+-- 
+2.43.0
+
