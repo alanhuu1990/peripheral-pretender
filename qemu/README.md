@@ -92,6 +92,7 @@ upstream, because QEMU declines AI-generated contributions (`docs/devel/code-pro
 | 0083 | LCD mini Click (`click-lcdmini`): the MCP23S17 on SPI (INTB on INT) driving an ST7066U/HD44780 16x2 LCD in 4-bit mode (instruction set, CGRAM, cursor and blink, shifts), an MCP4161 for the contrast on AN, the backlight on PWM; a PpPanel picture, `text`; qtests |
 | 0084 | Ambient 2 Click: OPT3001 (`opt3001`) at 0x44: automatic and manual ranges, 100/800 ms single-shot and continuous conversions, latched and transparent limits with fault counts, end-of-conversion mode, open-drain INT; `lux`; qtests |
 | 0085 | Thermo K Click: MCP9600 (`mchp-mcp9600`) at 0x60: TH, TDELTA, TC, the raw ADC at 18-12 bits, normal/shutdown/burst, four alerts (ALERT1 on INT, ALERT2 PWM, ALERT3 RST, ALERT4 AN); `temperature`, `cold`; qtests |
+| 0086 | STM32L4x2/L4x1 SoCs (`stm32l4x2kc-soc`, `stm32l4x1rb-soc`), `nucleo-l432kc` and `nucleo-l431rb` boards (ST-LINK USART2, LD3), minimal L4 FLASH/PWR/SPI/I2C, `pp-trace` on GPIO/USART and NVIC observer (`trace=` on the boards); upstream `stm32l4x5_*` models unchanged aside from trace hooks |
 
 ## Setting it up
 

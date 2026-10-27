@@ -55,5 +55,13 @@
     "board": "ev81x90a",
     "clicks": {},
     "firmware": null
+  },
+  {
+    "id": "stm32-hello",
+    "name": "STM32L432 NUCLEO hello",
+    "description": "Minimal firmware on the NUCLEO-L432KC: USART2 VCOM and LD3 on PB3, ending in PP:EXIT 0.",
+    "board": "nucleo_l432kc",
+    "clicks": {},
+    "firmware": "firmware/stm32-hello/build/stm32l432kc/hello.elf"
   }
 ]
